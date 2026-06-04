@@ -316,10 +316,11 @@
     // ── Console bridge → forwards webview logs to extension host console ─────
     const _origLog = console.log.bind(console);
     const _origErr = console.error.bind(console);
+    let _bridge = null; // set after liveAgent is created
     function _bridgeLog(level, args) {
-      const message = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
-      if (typeof liveAgent !== "undefined") liveAgent.send({ type: "console_log", level, message });
-      (level === "error" ? _origErr : _origLog)(message);
+      const message = args.map(a => { try { return typeof a === "object" ? JSON.stringify(a) : String(a); } catch(e) { return String(a); } }).join(" ");
+      if (_bridge) _bridge({ type: "console_log", level, message });
+      (level === "error" ? _origErr : _origLog)("[webview]", message);
     }
     console.log   = (...a) => _bridgeLog("log",   a);
     console.error = (...a) => _bridgeLog("error", a);
@@ -370,6 +371,8 @@
         else wsQueue.push(str);
       }
     };
+
+    _bridge = (msg) => liveAgent.send(msg); // now safe to set
 
     connectWS();
 

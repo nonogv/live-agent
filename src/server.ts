@@ -202,6 +202,7 @@ async function handleChat(
 
     ws.send(JSON.stringify({ type: "stream_end" }));
   } catch (err) {
+    console.error("[Live Agent] Chat error:", err);
     const message = err instanceof Error ? err.message : String(err);
     ws.send(JSON.stringify({ type: "error", message }));
     history.pop();
