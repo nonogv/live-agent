@@ -308,14 +308,6 @@
       if (tab === "settings") setTimeout(() => liveAgent.send({ type: "get_settings" }), 50);
     }
 
-    // ── External links → open in system browser via extension ────────────────
-    document.addEventListener("click", (e) => {
-      const a = e.target.closest("a.ext-link");
-      if (!a) return;
-      e.preventDefault();
-      liveAgent.send({ type: "open_url", url: a.href });
-    });
-
     // ── WebSocket connection ──────────────────────────────────────────────────
     let ws = null;
     let wsReady = false;
@@ -363,6 +355,14 @@
     };
 
     connectWS();
+
+    // ── External links → open in system browser via extension ────────────────
+    document.querySelectorAll("a.ext-link").forEach(link => {
+      link.addEventListener("click", e => {
+        e.preventDefault();
+        liveAgent.send({ type: "open_url", url: link.href });
+      });
+    });
 
     // ── Chat ──────────────────────────────────────────────────────────────────
     function sendMessage() {
