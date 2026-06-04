@@ -3,13 +3,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
-import type { Song, MidiTrack } from "@ableton-extensions/sdk";
+import type { Song } from "@ableton-extensions/sdk";
 import type { Storage } from "./storage.js";
-import { buildSystemPrompt, type LiveState } from "./agent/chat.js";
-import { handleToolCall, getLiveState } from "./live/executor.js";
+import { buildSystemPrompt } from "./agent/chat.js";
+import { getLiveState, handleToolCall } from "./live/executor.js";
 import { executeGeneratedTool } from "./live/generated-executor.js";
 import { GENERATED_TOOL_SCHEMAS } from "./agent/generated-tools.js";
+import { CUSTOM_TOOL_SCHEMAS } from "./agent/tools.js";
 import { createProvider, type ProviderMessage } from "./providers/index.js";
+
+const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -147,7 +150,7 @@ async function handleChat(
       model,
       systemPrompt,
       messages: [...history],
-      tools: GENERATED_TOOL_SCHEMAS,
+      tools: ALL_TOOL_SCHEMAS,
     })) {
       if (chunk.type === "text") {
         assistantContent += chunk.text;
