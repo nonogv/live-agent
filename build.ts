@@ -28,6 +28,13 @@ await esbuild.build({
   external: ["@ableton-extensions/sdk"],
   // esbuild outputs CJS so import.meta.url is unavailable; inject a
   // synthetic value so fileURLToPath() resolves __dirname correctly.
+  // Polyfill globals missing from the Extension Host sandbox
+  banner: {
+    js: [
+      `const _u = require('url');`,
+      `if (typeof URL === 'undefined') { globalThis.URL = _u.URL; globalThis.URLSearchParams = _u.URLSearchParams; }`,
+    ].join("\n"),
+  },
   define: {
     "global": "globalThis",
     "import.meta.url": JSON.stringify(`file://${path.resolve(outfile)}`),

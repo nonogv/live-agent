@@ -134,6 +134,8 @@
     .provider-row label { flex: 1; font-size: 12px; }
     .provider-row input { flex: 2; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); padding: 5px 8px; font-size: 12px; }
     .provider-row input:focus { outline: 1px solid var(--accent); }
+    .clear-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 3px 7px; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+    .clear-btn:hover { border-color: #e05555; color: #e05555; }
 
     #save-btn {
       width: 100%; background: var(--accent); border: none; color: white; border-radius: var(--radius);
@@ -214,16 +216,19 @@
           <div class="provider-dot unset" id="dot-openai"></div>
           <label for="key-openai">OpenAI</label>
           <input type="password" id="key-openai" placeholder="sk-…" autocomplete="off" />
+          <button class="clear-btn" onclick="clearKey('openai')" title="Clear key">✕</button>
         </div>
         <div class="provider-row">
           <div class="provider-dot unset" id="dot-anthropic"></div>
           <label for="key-anthropic">Anthropic</label>
           <input type="password" id="key-anthropic" placeholder="sk-ant-…" autocomplete="off" />
+          <button class="clear-btn" onclick="clearKey('anthropic')" title="Clear key">✕</button>
         </div>
         <div class="provider-row">
           <div class="provider-dot unset" id="dot-gemini"></div>
           <label for="key-gemini">Google Gemini</label>
           <input type="password" id="key-gemini" placeholder="AIza…" autocomplete="off" />
+          <button class="clear-btn" onclick="clearKey('gemini')" title="Clear key">✕</button>
         </div>
       </div>
 
@@ -307,6 +312,18 @@
       document.getElementById("tab-settings").classList.toggle("active", tab === "settings");
       if (tab === "settings") setTimeout(() => liveAgent.send({ type: "get_settings" }), 50);
     }
+
+    // ── Console bridge → forwards webview logs to extension host console ─────
+    const _origLog = console.log.bind(console);
+    const _origErr = console.error.bind(console);
+    function _bridgeLog(level, args) {
+      const message = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+      if (typeof liveAgent !== "undefined") liveAgent.send({ type: "console_log", level, message });
+      (level === "error" ? _origErr : _origLog)(message);
+    }
+    console.log   = (...a) => _bridgeLog("log",   a);
+    console.error = (...a) => _bridgeLog("error", a);
+    console.warn  = (...a) => _bridgeLog("warn",  a);
 
     // ── WebSocket connection ──────────────────────────────────────────────────
     let ws = null;
@@ -482,6 +499,15 @@
       const defaultProvider = document.getElementById("default-provider").value;
       const defaultModel = document.getElementById("default-model-select").value;
       liveAgent.send({ type: "save_settings", keys, defaultProvider, defaultModel });
+    }
+
+    function clearKey(provider) {
+      const input = document.getElementById(`key-${provider}`);
+      const dot = document.getElementById(`dot-${provider}`);
+      if (input) input.value = "__CLEAR__";
+      liveAgent.send({ type: "save_settings", keys: { [provider]: "__CLEAR__" }, defaultProvider: document.getElementById("default-provider").value, defaultModel: document.getElementById("default-model-select").value });
+      if (input) { input.value = ""; input.placeholder = provider === "openai" ? "sk-…" : provider === "anthropic" ? "sk-ant-…" : "AIza…"; }
+      if (dot) { dot.classList.remove("set"); dot.classList.add("unset"); }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

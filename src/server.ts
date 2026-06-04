@@ -75,7 +75,8 @@ type WebViewMessage =
   | { type: "clear_history" }
   | { type: "get_settings" }
   | { type: "save_settings"; keys: Record<string, string>; defaultProvider: string; defaultModel: string }
-  | { type: "open_url"; url: string };
+  | { type: "open_url"; url: string }
+  | { type: "console_log"; level: string; message: string };
 
 async function handleMessage(
   ws: WebSocket,
@@ -107,7 +108,9 @@ async function handleMessage(
 
     case "save_settings":
       for (const [provider, key] of Object.entries(msg.keys)) {
-        if (key && key !== "••••••••") {
+        if (key === "__CLEAR__") {
+          storage.setApiKey(provider, "");
+        } else if (key && key !== "••••••••") {
           storage.setApiKey(provider, key);
         }
       }
@@ -123,6 +126,10 @@ async function handleMessage(
       }
       break;
     }
+
+    case "console_log":
+      console.log(`[WebView:${msg.level}] ${msg.message}`);
+      break;
   }
 }
 
