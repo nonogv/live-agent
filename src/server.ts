@@ -42,7 +42,7 @@ export async function startServer(
   const history = storage.loadHistory();
   let autopilot = false;
 
-  const uiDir = path.join(__dirname, '..', 'ui');
+  const uiDir = path.join(__dirname, 'ui');
 
   const MIME: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
