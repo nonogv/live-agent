@@ -12,6 +12,7 @@ import { executeGeneratedTool } from './live/generated-executor.js';
 import { GENERATED_TOOL_SCHEMAS } from './agent/generated-tools.js';
 import { CUSTOM_TOOL_SCHEMAS } from './agent/tools.js';
 import { createProvider, type ProviderMessage } from './providers/index.js';
+import { DESTRUCTIVE_TOOLS } from './agent/safety.js';
 
 const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
@@ -39,6 +40,7 @@ export async function startServer(
   storage: Storage,
 ): Promise<LiveAgentServer> {
   const history = storage.loadHistory();
+  let autopilot = false;
 
   const httpServer = http.createServer((req, res) => {
     if (req.url === '/' || req.url === '/index.html') {
@@ -61,7 +63,9 @@ export async function startServer(
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
-        handleMessage(ws, msg, getSong, storage, history).catch((err) => {
+        handleMessage(ws, msg, getSong, storage, history, autopilot, (val) => {
+          autopilot = val;
+        }).catch((err) => {
           ws.send(JSON.stringify({ type: 'error', message: String(err) }));
         });
       } catch {
@@ -98,7 +102,9 @@ type WebViewMessage =
   | { type: 'clear_key'; provider: string }
   | { type: 'open_url'; url: string }
   | { type: 'console_log'; level: string; message: string }
-  | { type: 'debug'; provider: string; model: string };
+  | { type: 'debug'; provider: string; model: string }
+  | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
+  | { type: 'set_autopilot'; enabled: boolean };
 
 async function handleMessage(
   ws: WebSocket,
@@ -106,10 +112,20 @@ async function handleMessage(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
   history: ProviderMessage[],
+  autopilot: boolean,
+  setAutopilot: (val: boolean) => void,
 ): Promise<void> {
   switch (msg.type) {
     case 'chat':
-      await handleChat(ws, msg.text, msg.provider, msg.model, getSong, storage, history);
+      await handleChat(ws, msg.text, msg.provider, msg.model, getSong, storage, history, autopilot);
+      break;
+
+    case 'set_autopilot':
+      setAutopilot(msg.enabled);
+      break;
+
+    case 'confirm_response':
+      // Handled inside requestConfirmation via ws 'message' listener; ignore here.
       break;
 
     case 'clear_history':
@@ -173,6 +189,7 @@ async function handleChat(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
   history: ProviderMessage[],
+  autopilot: boolean,
 ): Promise<void> {
   const apiKey = storage.getApiKey(providerId);
   if (!apiKey) {
@@ -216,6 +233,28 @@ async function handleChat(
           ws.send(JSON.stringify({ type: 'stream_chunk', text: chunk.text }));
         } else if (chunk.type === 'tool_call') {
           hadToolCall = true;
+
+          if (!autopilot && DESTRUCTIVE_TOOLS.has(chunk.name)) {
+            const confirmed = await requestConfirmation(ws, chunk.id, chunk.name, chunk.args);
+            if (!confirmed) {
+              history.push({ role: 'assistant', content: assistantContent, toolCall: chunk });
+              history.push({
+                role: 'tool',
+                toolCallId: chunk.id,
+                content: JSON.stringify({ cancelled: true, reason: 'User declined.' }),
+              });
+              ws.send(
+                JSON.stringify({
+                  type: 'tool_result',
+                  name: chunk.name,
+                  result: { cancelled: true },
+                }),
+              );
+              assistantContent = '';
+              continue;
+            }
+          }
+
           ws.send(JSON.stringify({ type: 'tool_start', name: chunk.name, args: chunk.args }));
 
           const result = await executeGeneratedTool(song, chunk.name, chunk.args).catch(() =>
@@ -258,6 +297,41 @@ async function handleChat(
     ws.send(JSON.stringify({ type: 'error', message: stack }));
     history.pop();
   }
+}
+
+/**
+ * Sends a confirmation request to the UI and waits for the user's response.
+ * Resolves to `true` if the user confirms, `false` if they cancel or if the
+ * 30-second timeout elapses with no response.
+ */
+async function requestConfirmation(
+  ws: WebSocket,
+  toolCallId: string,
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    ws.send(JSON.stringify({ type: 'confirm_request', toolCallId, toolName, args }));
+
+    const handler = (raw: Buffer | ArrayBuffer | Buffer[]) => {
+      try {
+        const msg = JSON.parse(raw.toString()) as WebViewMessage;
+        if (msg.type === 'confirm_response' && msg.toolCallId === toolCallId) {
+          ws.off('message', handler);
+          resolve(msg.confirmed);
+        }
+      } catch {
+        // ignore malformed messages
+      }
+    };
+    ws.on('message', handler);
+
+    // Auto-cancel after 30 seconds if no response
+    setTimeout(() => {
+      ws.off('message', handler);
+      resolve(false);
+    }, 30_000);
+  });
 }
 
 async function handleDebug(

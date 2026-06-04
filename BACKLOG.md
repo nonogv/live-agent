@@ -60,16 +60,16 @@ Ship when alpha is stable and all v1 items are done.
 - [ ] Show message count or a faint timestamp on older messages
 
 ### Confirmation mode
-- [ ] Define destructive tool set in `src/agent/safety.ts` (delete track/scene/clip, etc.)
-- [ ] Add `confirm_request` / `confirm_response` WebSocket message types
-- [ ] In `server.ts`: before executing a destructive tool, pause and send `confirm_request`
-- [ ] In `index.html`: render inline confirm/cancel buttons in the chat stream
-- [ ] Wire cancel response to abort the tool call and inform the LLM
+- [x] Define destructive tool set in `src/agent/safety.ts` (delete track/scene/clip, etc.)
+- [x] Add `confirm_request` / `confirm_response` WebSocket message types
+- [x] In `server.ts`: before executing a destructive tool, pause and send `confirm_request`
+- [x] In `index.html`: render inline confirm/cancel buttons in the chat stream
+- [x] Wire cancel response to abort the tool call and inform the LLM
 
 ### Autopilot mode
-- [ ] Add safe/autopilot toggle button in the chat bar (default: safe)
-- [ ] Pass `autopilot: boolean` with each chat message
-- [ ] In `server.ts`: if autopilot, skip confirmation and execute immediately
+- [x] Add safe/autopilot toggle button in the chat bar (default: safe)
+- [x] Pass `autopilot: boolean` with each chat message
+- [x] In `server.ts`: if autopilot, skip confirmation and execute immediately
 
 ### Checkpoint system (via withinTransaction)
 - [ ] Wrap all tool calls within a single agent turn in `withinTransaction()` in `server.ts`

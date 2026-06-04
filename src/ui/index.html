@@ -399,6 +399,51 @@
         min-height: 18px;
       }
 
+      /* ── Confirm card ───────────────────────────────────────────────── */
+      .msg.confirm-card {
+        background: #1f1a2a;
+        border: 1px solid #4a3060;
+      }
+      .msg.confirm-card .label {
+        color: #c49ee0;
+      }
+      .msg.confirm-card .tool-name {
+        color: #e0c060;
+        font-weight: 600;
+      }
+      .msg.confirm-card .tool-args {
+        margin-top: 6px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-dim);
+        white-space: pre-wrap;
+      }
+      .confirm-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .confirm-actions button {
+        border: none;
+        border-radius: var(--radius);
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .confirm-actions button:hover {
+        opacity: 0.85;
+      }
+      .confirm-yes {
+        background: #2d6a3a;
+        color: #a8e6b4;
+      }
+      .confirm-no {
+        background: #6a2d2d;
+        color: #e6a8a8;
+      }
+
       /* ── Empty state ─────────────────────────────────────────────────── */
       #empty-state {
         display: flex;
@@ -469,6 +514,13 @@
         </button>
         <button id="diagnose-btn" onclick="runDiagnose()" title="Run environment diagnostics">
           Diagnose
+        </button>
+        <button
+          id="autopilot-btn"
+          onclick="toggleAutopilot()"
+          title="Skip confirmation for destructive actions"
+        >
+          Autopilot
         </button>
         <button id="clear-btn" onclick="clearHistory()" title="Clear conversation">Clear</button>
       </div>
@@ -593,6 +645,7 @@
       let isStreaming = false;
       let currentAgentMsg = null;
       let debugMode = false;
+      let autopilotMode = false;
 
       function populateModelSelect(selectEl, provider, selectedModel) {
         selectEl.innerHTML = '';
@@ -682,6 +735,9 @@
               break;
             case 'tool_result':
               break;
+            case 'confirm_request':
+              showConfirmCard(msg.toolCallId, msg.toolName, msg.args);
+              break;
             case 'error':
               onError(msg.message);
               break;
@@ -763,6 +819,38 @@
       function toggleDebugMode() {
         debugMode = !debugMode;
         document.getElementById('tools-btn').classList.toggle('active', debugMode);
+      }
+
+      function toggleAutopilot() {
+        autopilotMode = !autopilotMode;
+        document.getElementById('autopilot-btn').classList.toggle('active', autopilotMode);
+        liveAgent.send({ type: 'set_autopilot', enabled: autopilotMode });
+      }
+
+      function showConfirmCard(toolCallId, toolName, args) {
+        const container = document.getElementById('messages');
+        hideEmptyState();
+        const card = document.createElement('div');
+        card.id = `confirm-${toolCallId}`;
+        card.className = 'msg confirm-card';
+        card.innerHTML = `
+          <div class="label">Confirmation required</div>
+          <div class="body">
+            <span class="tool-name">⚠ ${toolName}</span>
+            <div class="tool-args">${JSON.stringify(args, null, 2)}</div>
+            <div class="confirm-actions">
+              <button class="confirm-yes" onclick="respondConfirm('${toolCallId}', true)">✓ Confirm</button>
+              <button class="confirm-no" onclick="respondConfirm('${toolCallId}', false)">✗ Cancel</button>
+            </div>
+          </div>`;
+        container.appendChild(card);
+        container.scrollTop = container.scrollHeight;
+      }
+
+      function respondConfirm(toolCallId, confirmed) {
+        const card = document.getElementById('confirm-' + toolCallId);
+        if (card) card.remove();
+        liveAgent.send({ type: 'confirm_response', confirmed, toolCallId });
       }
 
       function runDiagnose() {
