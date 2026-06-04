@@ -7,7 +7,7 @@ export interface LiveState {
 export function buildSystemPrompt(liveState: LiveState): string {
   const trackList = liveState.tracks
     .map((t, i) => `  ${i + 1}. [${t.type}] "${t.name}" (id: ${t.id})`)
-    .join("\n");
+    .join('\n');
 
   return `You are Live Agent, an AI assistant embedded directly in Ableton Live.
 You help music producers control their session using natural language.
@@ -15,7 +15,7 @@ You help music producers control their session using natural language.
 ## Current session state
 - Tempo: ${liveState.tempo} BPM
 - Tracks (${liveState.trackCount}):
-${trackList || "  (no tracks yet)"}
+${trackList || '  (no tracks yet)'}
 
 ## Tool naming convention
 Tools follow the pattern \`{object}_{action}\`. Examples:

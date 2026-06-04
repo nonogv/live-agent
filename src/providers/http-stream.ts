@@ -3,11 +3,11 @@
  * No globals needed — uses only Node.js built-ins.
  */
 
-import https from "node:https";
-import http from "node:http";
+import https from 'node:https';
+import http from 'node:http';
 
 export interface HttpChunk {
-  type: "text" | "tool_call";
+  type: 'text' | 'tool_call';
   text?: string;
   id?: string;
   name?: string;
@@ -34,8 +34,8 @@ async function* streamLines(opts: ReqOptions): AsyncGenerator<string> {
     method: opts.method,
     headers: {
       ...opts.headers,
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(bodyStr).toString(),
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(bodyStr).toString(),
     },
   };
 
@@ -45,32 +45,32 @@ async function* streamLines(opts: ReqOptions): AsyncGenerator<string> {
   let error: Error | null = null;
 
   const req = https.request(reqOpts, (res: http.IncomingMessage) => {
-    let buf = "";
+    let buf = '';
 
-    res.on("data", (chunk: Buffer) => {
+    res.on('data', (chunk: Buffer) => {
       buf += chunk.toString();
-      const parts = buf.split("\n");
-      buf = parts.pop() ?? "";
+      const parts = buf.split('\n');
+      buf = parts.pop() ?? '';
       for (const line of parts) {
         lines.push(line);
       }
       resolve?.();
     });
 
-    res.on("end", () => {
+    res.on('end', () => {
       if (buf) lines.push(buf);
       done = true;
       resolve?.();
     });
 
-    res.on("error", (err: Error) => {
+    res.on('error', (err: Error) => {
       error = err;
       done = true;
       resolve?.();
     });
   });
 
-  req.on("error", (err: Error) => {
+  req.on('error', (err: Error) => {
     error = err;
     done = true;
     resolve?.();
@@ -84,7 +84,9 @@ async function* streamLines(opts: ReqOptions): AsyncGenerator<string> {
       yield lines.shift()!;
     }
     if (done) break;
-    await new Promise<void>((r) => { resolve = r; });
+    await new Promise<void>((r) => {
+      resolve = r;
+    });
     resolve = null;
   }
 
@@ -104,41 +106,53 @@ export async function* openaiStream(
   model: string,
   systemPrompt: string,
   messages: ProviderMsg[],
-  tools: ToolSchema[]
+  tools: ToolSchema[],
 ): HttpChunkStream {
   const oaiMessages = buildOAIMessages(systemPrompt, messages);
 
   const body = {
     model,
     messages: oaiMessages,
-    tools: tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })),
+    tools: tools.map((t) => ({
+      type: 'function',
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    })),
     stream: true,
   };
 
   const partialCalls: Record<number, { id: string; name: string; args: string }> = {};
 
   for await (const line of streamLines({
-    hostname: "api.openai.com",
-    path: "/v1/chat/completions",
-    method: "POST",
+    hostname: 'api.openai.com',
+    path: '/v1/chat/completions',
+    method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body,
   })) {
-    if (!line.startsWith("data: ")) continue;
+    if (!line.startsWith('data: ')) continue;
     const data = line.slice(6).trim();
-    if (data === "[DONE]") break;
+    if (data === '[DONE]') break;
 
-    let chunk: { choices: Array<{ delta: { content?: string; tool_calls?: OAIToolCallDelta[] }; finish_reason?: string }> };
-    try { chunk = JSON.parse(data); } catch { continue; }
+    let chunk: {
+      choices: Array<{
+        delta: { content?: string; tool_calls?: OAIToolCallDelta[] };
+        finish_reason?: string;
+      }>;
+    };
+    try {
+      chunk = JSON.parse(data);
+    } catch {
+      continue;
+    }
 
     const delta = chunk.choices?.[0]?.delta;
     if (!delta) continue;
 
-    if (delta.content) yield { type: "text", text: delta.content };
+    if (delta.content) yield { type: 'text', text: delta.content };
 
     for (const tc of delta.tool_calls ?? []) {
       if (!partialCalls[tc.index]) {
-        partialCalls[tc.index] = { id: tc.id ?? "", name: tc.function?.name ?? "", args: "" };
+        partialCalls[tc.index] = { id: tc.id ?? '', name: tc.function?.name ?? '', args: '' };
       }
       const pc = partialCalls[tc.index];
       if (tc.id) pc.id = tc.id;
@@ -146,11 +160,15 @@ export async function* openaiStream(
       if (tc.function?.arguments) pc.args += tc.function.arguments;
     }
 
-    if (chunk.choices?.[0]?.finish_reason === "tool_calls") {
+    if (chunk.choices?.[0]?.finish_reason === 'tool_calls') {
       for (const pc of Object.values(partialCalls)) {
         let args: Record<string, unknown> = {};
-        try { args = JSON.parse(pc.args); } catch { /* leave empty */ }
-        yield { type: "tool_call", id: pc.id, name: pc.name, args };
+        try {
+          args = JSON.parse(pc.args);
+        } catch {
+          /* leave empty */
+        }
+        yield { type: 'tool_call', id: pc.id, name: pc.name, args };
       }
     }
   }
@@ -163,53 +181,70 @@ export async function* anthropicStream(
   model: string,
   systemPrompt: string,
   messages: ProviderMsg[],
-  tools: ToolSchema[]
+  tools: ToolSchema[],
 ): HttpChunkStream {
   const body = {
     model,
     max_tokens: 4096,
     system: systemPrompt,
     messages: buildAnthropicMessages(messages),
-    tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })),
+    tools: tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.parameters,
+    })),
     stream: true,
   };
 
-  let currentToolId = "";
-  let currentToolName = "";
-  let currentToolArgs = "";
+  let currentToolId = '';
+  let currentToolName = '';
+  let currentToolArgs = '';
 
   for await (const line of streamLines({
-    hostname: "api.anthropic.com",
-    path: "/v1/messages",
-    method: "POST",
+    hostname: 'api.anthropic.com',
+    path: '/v1/messages',
+    method: 'POST',
     headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
     },
     body,
   })) {
-    if (!line.startsWith("data: ")) continue;
+    if (!line.startsWith('data: ')) continue;
     const data = line.slice(6).trim();
 
-    let ev: { type: string; index?: number; delta?: { type: string; text?: string; partial_json?: string }; content_block?: { type: string; id?: string; name?: string } };
-    try { ev = JSON.parse(data); } catch { continue; }
+    let ev: {
+      type: string;
+      index?: number;
+      delta?: { type: string; text?: string; partial_json?: string };
+      content_block?: { type: string; id?: string; name?: string };
+    };
+    try {
+      ev = JSON.parse(data);
+    } catch {
+      continue;
+    }
 
-    if (ev.type === "content_block_start" && ev.content_block?.type === "tool_use") {
-      currentToolId = ev.content_block.id ?? "";
-      currentToolName = ev.content_block.name ?? "";
-      currentToolArgs = "";
-    } else if (ev.type === "content_block_delta") {
-      if (ev.delta?.type === "text_delta" && ev.delta.text) {
-        yield { type: "text", text: ev.delta.text };
-      } else if (ev.delta?.type === "input_json_delta" && ev.delta.partial_json) {
+    if (ev.type === 'content_block_start' && ev.content_block?.type === 'tool_use') {
+      currentToolId = ev.content_block.id ?? '';
+      currentToolName = ev.content_block.name ?? '';
+      currentToolArgs = '';
+    } else if (ev.type === 'content_block_delta') {
+      if (ev.delta?.type === 'text_delta' && ev.delta.text) {
+        yield { type: 'text', text: ev.delta.text };
+      } else if (ev.delta?.type === 'input_json_delta' && ev.delta.partial_json) {
         currentToolArgs += ev.delta.partial_json;
       }
-    } else if (ev.type === "content_block_stop" && currentToolName) {
+    } else if (ev.type === 'content_block_stop' && currentToolName) {
       let args: Record<string, unknown> = {};
-      try { args = JSON.parse(currentToolArgs); } catch { /* leave empty */ }
-      yield { type: "tool_call", id: currentToolId, name: currentToolName, args };
-      currentToolName = "";
-      currentToolArgs = "";
+      try {
+        args = JSON.parse(currentToolArgs);
+      } catch {
+        /* leave empty */
+      }
+      yield { type: 'tool_call', id: currentToolId, name: currentToolName, args };
+      currentToolName = '';
+      currentToolArgs = '';
     }
   }
 }
@@ -221,34 +256,61 @@ export async function* geminiStream(
   model: string,
   systemPrompt: string,
   messages: ProviderMsg[],
-  tools: ToolSchema[]
+  tools: ToolSchema[],
 ): HttpChunkStream {
   const body = {
     systemInstruction: { parts: [{ text: systemPrompt }] },
     contents: buildGeminiContents(messages),
-    tools: [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters })) }],
+    tools: [
+      {
+        functionDeclarations: tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        })),
+      },
+    ],
   };
 
-  let jsonBuf = "";
+  let jsonBuf = '';
 
   for await (const line of streamLines({
-    hostname: "generativelanguage.googleapis.com",
+    hostname: 'generativelanguage.googleapis.com',
     path: `/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`,
-    method: "POST",
+    method: 'POST',
     headers: {},
     body,
   })) {
-    if (!line.startsWith("data: ")) continue;
+    if (!line.startsWith('data: ')) continue;
     const data = line.slice(6).trim();
     jsonBuf += data;
 
-    let chunk: { candidates?: Array<{ content?: { parts?: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> } }> } }> };
-    try { chunk = JSON.parse(jsonBuf); jsonBuf = ""; } catch { continue; }
+    let chunk: {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            text?: string;
+            functionCall?: { name: string; args: Record<string, unknown> };
+          }>;
+        };
+      }>;
+    };
+    try {
+      chunk = JSON.parse(jsonBuf);
+      jsonBuf = '';
+    } catch {
+      continue;
+    }
 
     for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-      if (part.text) yield { type: "text", text: part.text };
+      if (part.text) yield { type: 'text', text: part.text };
       if (part.functionCall) {
-        yield { type: "tool_call", id: `gemini-${Date.now()}`, name: part.functionCall.name, args: part.functionCall.args };
+        yield {
+          type: 'tool_call',
+          id: `gemini-${Date.now()}`,
+          name: part.functionCall.name,
+          args: part.functionCall.args,
+        };
       }
     }
   }
@@ -257,7 +319,7 @@ export async function* geminiStream(
 // ── Shared types & helpers ───────────────────────────────────────────────────
 
 export interface ProviderMsg {
-  role: "user" | "assistant" | "tool";
+  role: 'user' | 'assistant' | 'tool';
   content: string;
   toolCall?: { id: string; name: string; args: Record<string, unknown> };
   toolCallId?: string;
@@ -269,24 +331,23 @@ export interface ToolSchema {
   parameters: Record<string, unknown>;
 }
 
-function buildOAIMessages(
-  systemPrompt: string,
-  messages: ProviderMsg[]
-): unknown[] {
-  const result: unknown[] = [{ role: "system", content: systemPrompt }];
+function buildOAIMessages(systemPrompt: string, messages: ProviderMsg[]): unknown[] {
+  const result: unknown[] = [{ role: 'system', content: systemPrompt }];
   for (const m of messages) {
-    if (m.role === "assistant" && m.toolCall) {
+    if (m.role === 'assistant' && m.toolCall) {
       result.push({
-        role: "assistant",
+        role: 'assistant',
         content: m.content || null,
-        tool_calls: [{
-          id: m.toolCall.id,
-          type: "function",
-          function: { name: m.toolCall.name, arguments: JSON.stringify(m.toolCall.args) },
-        }],
+        tool_calls: [
+          {
+            id: m.toolCall.id,
+            type: 'function',
+            function: { name: m.toolCall.name, arguments: JSON.stringify(m.toolCall.args) },
+          },
+        ],
       });
-    } else if (m.role === "tool") {
-      result.push({ role: "tool", tool_call_id: m.toolCallId, content: m.content });
+    } else if (m.role === 'tool') {
+      result.push({ role: 'tool', tool_call_id: m.toolCallId, content: m.content });
     } else {
       result.push({ role: m.role, content: m.content });
     }
@@ -297,18 +358,18 @@ function buildOAIMessages(
 function buildAnthropicMessages(messages: ProviderMsg[]): unknown[] {
   const result: unknown[] = [];
   for (const m of messages) {
-    if (m.role === "assistant" && m.toolCall) {
+    if (m.role === 'assistant' && m.toolCall) {
       result.push({
-        role: "assistant",
+        role: 'assistant',
         content: [
-          ...(m.content ? [{ type: "text", text: m.content }] : []),
-          { type: "tool_use", id: m.toolCall.id, name: m.toolCall.name, input: m.toolCall.args },
+          ...(m.content ? [{ type: 'text', text: m.content }] : []),
+          { type: 'tool_use', id: m.toolCall.id, name: m.toolCall.name, input: m.toolCall.args },
         ],
       });
-    } else if (m.role === "tool") {
+    } else if (m.role === 'tool') {
       result.push({
-        role: "user",
-        content: [{ type: "tool_result", tool_use_id: m.toolCallId, content: m.content }],
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: m.toolCallId, content: m.content }],
       });
     } else {
       result.push({ role: m.role, content: m.content });
@@ -319,18 +380,18 @@ function buildAnthropicMessages(messages: ProviderMsg[]): unknown[] {
 
 function buildGeminiContents(messages: ProviderMsg[]): unknown[] {
   return messages.map((m) => {
-    if (m.role === "tool") {
+    if (m.role === 'tool') {
       return {
-        role: "user",
-        parts: [{ functionResponse: { name: "", response: { content: m.content } } }],
+        role: 'user',
+        parts: [{ functionResponse: { name: '', response: { content: m.content } } }],
       };
     }
-    if (m.role === "assistant" && m.toolCall) {
+    if (m.role === 'assistant' && m.toolCall) {
       return {
-        role: "model",
+        role: 'model',
         parts: [{ functionCall: { name: m.toolCall.name, args: m.toolCall.args } }],
       };
     }
-    return { role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] };
+    return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] };
   });
 }
