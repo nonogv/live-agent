@@ -505,12 +505,11 @@
     }
 
     function clearKey(provider) {
+      liveAgent.send({ type: "clear_key", provider });
       const input = document.getElementById(`key-${provider}`);
-      const dot = document.getElementById(`dot-${provider}`);
-      if (input) input.value = "__CLEAR__";
-      liveAgent.send({ type: "save_settings", keys: { [provider]: "__CLEAR__" }, defaultProvider: document.getElementById("default-provider").value, defaultModel: document.getElementById("default-model-select").value });
+      const dot   = document.getElementById(`dot-${provider}`);
       if (input) { input.value = ""; input.placeholder = provider === "openai" ? "sk-…" : provider === "anthropic" ? "sk-ant-…" : "AIza…"; }
-      if (dot) { dot.classList.remove("set"); dot.classList.add("unset"); }
+      if (dot)   { dot.classList.remove("set"); dot.classList.add("unset"); }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

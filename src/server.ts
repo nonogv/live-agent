@@ -75,6 +75,7 @@ type WebViewMessage =
   | { type: "clear_history" }
   | { type: "get_settings" }
   | { type: "save_settings"; keys: Record<string, string>; defaultProvider: string; defaultModel: string }
+  | { type: "clear_key"; provider: string }
   | { type: "open_url"; url: string }
   | { type: "console_log"; level: string; message: string };
 
@@ -108,14 +109,17 @@ async function handleMessage(
 
     case "save_settings":
       for (const [provider, key] of Object.entries(msg.keys)) {
-        if (key === "__CLEAR__") {
-          storage.setApiKey(provider, "");
-        } else if (key && key !== "••••••••") {
+        if (key && key !== "••••••••") {
           storage.setApiKey(provider, key);
         }
       }
       storage.setDefaults(msg.defaultProvider, msg.defaultModel);
       ws.send(JSON.stringify({ type: "settings_saved" }));
+      break;
+
+    case "clear_key":
+      storage.setApiKey(msg.provider, "");
+      ws.send(JSON.stringify({ type: "key_cleared", provider: msg.provider }));
       break;
 
     case "open_url": {

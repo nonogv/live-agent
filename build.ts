@@ -28,18 +28,14 @@ await esbuild.build({
   external: ["@ableton-extensions/sdk"],
   // esbuild outputs CJS so import.meta.url is unavailable; inject a
   // synthetic value so fileURLToPath() resolves __dirname correctly.
-  // Polyfill globals missing from the Extension Host sandbox.
-  // The sandbox strips modern Node globals; restore them from core modules.
-  banner: {
-    js: [
-      `const _u = require('url');`,
-      `if (typeof URL === 'undefined') { globalThis.URL = _u.URL; globalThis.URLSearchParams = _u.URLSearchParams; }`,
-      `const _undici = (() => { try { return require('undici'); } catch(e) { return null; } })();`,
-      `if (_undici && typeof fetch === 'undefined') { globalThis.fetch = _undici.fetch; globalThis.Headers = _undici.Headers; globalThis.Request = _undici.Request; globalThis.Response = _undici.Response; }`,
-    ].join("\n"),
-  },
+  // Inject a polyfill module whose exports are available to the whole bundle.
+  // This is more reliable than banner-based globalThis mutation, which the
+  // Extension Host sandbox may silently ignore (frozen context).
+  inject: ["./src/sandbox-polyfill.ts"],
   define: {
     "global": "globalThis",
+    "URL": "__sandboxURL__",
+    "URLSearchParams": "__sandboxUSP__",
     "import.meta.url": JSON.stringify(`file://${path.resolve(outfile)}`),
   },
 });
