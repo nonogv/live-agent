@@ -239,7 +239,7 @@ async function handleChat(
     const provider = createProvider(providerId, apiKey);
     const song = getSong();
     const liveState = await getLiveState(song);
-    const systemPrompt = buildSystemPrompt(liveState);
+    const systemPrompt = buildSystemPrompt(liveState, ALL_TOOL_SCHEMAS);
 
     // Agentic loop: keep calling the provider until it returns a final text
     // response with no tool calls (max 10 rounds as a safety net).
