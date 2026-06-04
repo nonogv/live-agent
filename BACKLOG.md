@@ -43,11 +43,12 @@ Ship when alpha is stable and all v1 items are done.
 ### Tooling & DX
 *Do alongside or right after the React migration.*
 - [ ] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
-- [ ] **Prettier** — add `.prettierrc` (single quotes, 2 spaces, trailing commas); add `format` and `format:check` scripts
-- [ ] **ESLint** — add `eslint.config.ts` with `@eslint/js`, `typescript-eslint`, `eslint-plugin-react`, `eslint-plugin-react-hooks`; add `lint` and `lint:fix` scripts
-- [ ] **Husky + lint-staged** — `pre-commit` hook runs `prettier --check` + `eslint` on staged files only
-- [ ] **GitHub Actions CI** — workflow on every PR and push to `main`: install deps → typecheck → lint → test; block merge if any step fails
-- [ ] Update `CONTRIBUTING.md` iteration checklist to mention running `npm run lint` and `npm run format:check`
+- [ ] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
+- [x] **Prettier** — add `.prettierrc` (single quotes, 2 spaces, trailing commas); add `format` and `format:check` scripts
+- [x] **ESLint** — add `eslint.config.ts` with `@eslint/js`, `typescript-eslint`; add `lint` and `lint:fix` scripts
+- [x] **Husky + lint-staged** — `pre-commit` hook runs `prettier --check` + `eslint` on staged files only
+- [x] **GitHub Actions CI** — workflow on every PR and push to `main`: install deps → typecheck → lint → test; block merge if any step fails
+- [x] Update `CONTRIBUTING.md` iteration checklist to mention running `npm run lint` and `npm run format:check`
 
 ### Chat UX
 - [ ] Markdown rendering in agent messages (bold, code blocks, lists)

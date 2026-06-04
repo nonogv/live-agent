@@ -111,6 +111,8 @@ Every meaningful change must include:
 
 - [ ] **Unit tests** — new logic gets new tests; existing tests stay green
 - [ ] **JSDoc** — exported symbols are documented
+- [ ] **Format check** — run `npm run format:check` (or `npm run format` to auto-fix)
+- [ ] **Lint** — run `npm run lint` and fix any errors before committing
 - [ ] **README update** — if the change affects setup, capabilities, or public-facing behavior
 - [ ] **BACKLOG update** — tick completed tasks, add discovered issues
 - [ ] **Version bump** — if the change crosses a milestone (patch/minor/major); tag the release
