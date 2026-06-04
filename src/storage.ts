@@ -27,7 +27,7 @@ export class Storage {
   }
 
   private load(): Settings {
-    const defaults = structuredClone(DEFAULT_SETTINGS);
+    const defaults = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as Settings;
     try {
       const raw = fs.readFileSync(this.filePath, "utf-8");
       const parsed = JSON.parse(raw) as Partial<Settings>;

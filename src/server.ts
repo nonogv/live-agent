@@ -21,7 +21,7 @@ export interface LiveAgentServer {
   close(): void;
 }
 
-export function startServer(getSong: () => Song<"1.0.0">, storage: Storage): LiveAgentServer {
+export async function startServer(getSong: () => Song<"1.0.0">, storage: Storage): Promise<LiveAgentServer> {
   const history: ProviderMessage[] = [];
 
   const httpServer = http.createServer((req, res) => {
@@ -56,7 +56,7 @@ export function startServer(getSong: () => Song<"1.0.0">, storage: Storage): Liv
     ws.on("close", () => console.log("[Live Agent] UI disconnected"));
   });
 
-  httpServer.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
   const address = httpServer.address() as { port: number };
 
   console.log(`[Live Agent] Server listening on http://127.0.0.1:${address.port}`);

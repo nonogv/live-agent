@@ -1,7 +1,7 @@
 {
   "name": "Live Agent",
   "author": "nonogv",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0",
   "description": "AI-powered assistant for Ableton Live. Chat with GPT, Claude, or Gemini to control your session using natural language.",
   "entry": "dist/extension.js",
   "minimumApiVersion": "1.0.0"

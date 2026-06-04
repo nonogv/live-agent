@@ -29,6 +29,7 @@ await esbuild.build({
   // esbuild outputs CJS so import.meta.url is unavailable; inject a
   // synthetic value so fileURLToPath() resolves __dirname correctly.
   define: {
+    "global": "globalThis",
     "import.meta.url": JSON.stringify(`file://${path.resolve(outfile)}`),
   },
 });
