@@ -6,3 +6,4 @@ dist/
 .DS_Store
 *.ablext
 settings.json
+debug-probe.txt
