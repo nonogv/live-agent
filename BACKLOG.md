@@ -18,11 +18,11 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 - [x] Multi-turn conversation with tool chaining (create clip → name it → write MIDI notes → insert device)
 - [x] Chat history persists across webview close/reopen
 - [x] Send "Delete the Bass track" → verify deletion works and IDs refresh correctly
-- [ ] Send "Set tempo to 140" → verify `song_set_tempo` updates in Live
+- [x] Send "Set tempo to 140" → verify `song_set_tempo` updates in Live
 - [ ] Test with OpenAI key
-- [ ] Test with Anthropic key
+- [x] Test with Anthropic key
 - [ ] Test with Gemini key
-- [ ] Test what happens when Live is closed and reopened (extension re-activates, history reloads?)
+- [x] Test what happens when Live is closed and reopened (extension re-activates, history reloads?)
 
 ---
 
