@@ -55,7 +55,8 @@ export type ServerMessage =
   | { type: 'history_cleared' }
   | SettingsPayload
   | { type: 'settings_saved' }
-  | { type: 'key_cleared'; provider: string };
+  | { type: 'key_cleared'; provider: string }
+  | { type: 'history'; messages: Array<{ role: 'user' | 'agent'; content: string }> };
 
 // ── WebSocket message types (client → server) ──────────────────────────────
 

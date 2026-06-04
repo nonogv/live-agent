@@ -61,5 +61,51 @@
   {
     "role": "assistant",
     "content": "You have **5 tracks**:\n\n| # | Name | Type |\n|---|------|------|\n| 1 | 1-MIDI | MIDI |\n| 2 | 2-MIDI | MIDI |\n| 3 | 3-Audio | Audio |\n| 4 | 4-Audio | Audio |\n| 5 | Bass | MIDI |\n\nAnything you'd like to do with them?"
+  },
+  {
+    "role": "user",
+    "content": "What tracks do I have?"
+  },
+  {
+    "role": "assistant",
+    "content": "Same 5 tracks as before! Let me grab a fresh snapshot just in case anything has changed:",
+    "toolCall": {
+      "type": "tool_call",
+      "id": "toolu_01BamYEaaTKtZzoUyiqn6vHL",
+      "name": "get_live_state",
+      "args": {}
+    }
+  },
+  {
+    "role": "tool",
+    "toolCallId": "toolu_01BamYEaaTKtZzoUyiqn6vHL",
+    "content": "{\"tempo\":128,\"trackCount\":5,\"tracks\":[{\"id\":\"121260771745536403377302405982223184412278907\",\"name\":\"1-MIDI\",\"type\":\"midi\",\"devices\":[]},{\"id\":\"140425474650523657639559663872780370081480827\",\"name\":\"2-MIDI\",\"type\":\"midi\",\"devices\":[]},{\"id\":\"159590177555510911901816921763337555750682747\",\"name\":\"3-Audio\",\"type\":\"audio\",\"devices\":[]},{\"id\":\"167604507861232854593306320517570560666894459\",\"name\":\"4-Audio\",\"type\":\"audio\",\"devices\":[]},{\"id\":\"235203641744278805991086466531535906481897595\",\"name\":\"Bass\",\"type\":\"midi\",\"devices\":[\"Analog\"]}]}"
+  },
+  {
+    "role": "assistant",
+    "content": "Still the same **5 tracks**:\n\n| # | Name | Type | Devices |\n|---|------|------|---------|\n| 1 | 1-MIDI | MIDI | — |\n| 2 | 2-MIDI | MIDI | — |\n| 3 | 3-Audio | Audio | — |\n| 4 | 4-Audio | Audio | — |\n| 5 | Bass | MIDI | Analog |\n\nAnything you'd like to change?"
+  },
+  {
+    "role": "user",
+    "content": "yeah I don’t like how the bass sounds, try to get a cleaner sound, similar to an upright bass.. you should have better tools now"
+  },
+  {
+    "role": "assistant",
+    "content": "You're right, I can see the Bass track is using **Analog**. Let me check its parameters and adjust them for a cleaner, upright bass tone!",
+    "toolCall": {
+      "type": "tool_call",
+      "id": "toolu_01GEsCWyVdrqMHBo99V62vS2",
+      "name": "get_live_state",
+      "args": {}
+    }
+  },
+  {
+    "role": "tool",
+    "toolCallId": "toolu_01GEsCWyVdrqMHBo99V62vS2",
+    "content": "{\"tempo\":128,\"trackCount\":5,\"tracks\":[{\"id\":\"121260771745536403377302405982223184412278907\",\"name\":\"1-MIDI\",\"type\":\"midi\",\"devices\":[]},{\"id\":\"140425474650523657639559663872780370081480827\",\"name\":\"2-MIDI\",\"type\":\"midi\",\"devices\":[]},{\"id\":\"159590177555510911901816921763337555750682747\",\"name\":\"3-Audio\",\"type\":\"audio\",\"devices\":[]},{\"id\":\"167604507861232854593306320517570560666894459\",\"name\":\"4-Audio\",\"type\":\"audio\",\"devices\":[]},{\"id\":\"235203641744278805991086466531535906481897595\",\"name\":\"Bass\",\"type\":\"midi\",\"devices\":[\"Analog\"]}]}"
+  },
+  {
+    "role": "assistant",
+    "content": "Unfortunately, while I can see that **Analog** is loaded on the Bass track, my tools don't currently expose the individual parameter IDs for devices like Analog — so I can't directly tweak its oscillator, filter, or envelope settings.\n\n**However, here's what I *can* do right now:**\n\n1. **Add an EQ Eight** to roll off the highs and shape a warmer tone\n2. **Add a Compressor** to tighten the dynamics (upright bass has a very controlled, punchy feel)\n3. **Add a Reverb** for a subtle acoustic room sound\n\nWould you like me to add any or all of these to the Bass track? That would get you meaningfully closer to an upright bass vibe!"
   }
 ]
