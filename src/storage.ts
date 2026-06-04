@@ -27,11 +27,13 @@ export class Storage {
   }
 
   private load(): Settings {
+    const defaults = structuredClone(DEFAULT_SETTINGS);
     try {
       const raw = fs.readFileSync(this.filePath, "utf-8");
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw) as Partial<Settings>;
+      return { ...defaults, ...parsed, apiKeys: { ...defaults.apiKeys, ...parsed.apiKeys } };
     } catch {
-      return { ...DEFAULT_SETTINGS };
+      return defaults;
     }
   }
 

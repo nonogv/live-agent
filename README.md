@@ -10,6 +10,8 @@ Live Agent is an Ableton Extension that opens a chat panel inside Live. You type
 
 Tool schemas are **auto-generated** from the SDK type definitions — every method and setter the SDK exposes becomes a callable tool. This means coverage stays in sync with SDK updates automatically.
 
+**Free to use, always.** The basic extension works with free-tier or local models — no account required, no charges from us. A student with a free Gemini key can use Live Agent the same way a professional does. Optional cloud features may be introduced in the future, but the core tool stays free.
+
 **Supported AI providers:**
 | Provider | Models |
 |---|---|
