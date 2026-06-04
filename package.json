@@ -1,0 +1,29 @@
+{
+  "name": "live-agent",
+  "version": "0.1.0",
+  "description": "AI agent for Ableton Live — chat with GPT, Claude, or Gemini to control your session",
+  "main": "dist/extension.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc --watch",
+    "build:ui": "cd src/ui && npx esbuild index.tsx --bundle --outfile=../../dist/ui/index.js --platform=browser --target=es2020 --loader:.tsx=tsx --loader:.ts=ts",
+    "dev": "npm run build && npm run build:ui",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["ableton", "live", "ai", "agent", "extension", "openai", "claude", "gemini"],
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^4.100.0",
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@google/generative-ai": "^0.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "esbuild": "^0.25.5",
+    "@types/node": "^22.15.29"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
