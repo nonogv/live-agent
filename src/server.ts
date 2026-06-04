@@ -279,8 +279,15 @@ async function handleChat(
 
           ws.send(JSON.stringify({ type: 'tool_start', name: chunk.name, args: chunk.args }));
 
-          const result = await executeGeneratedTool(song, chunk.name, chunk.args).catch(() =>
-            handleToolCall(song, chunk.name, chunk.args),
+          const result = await executeGeneratedTool(song, chunk.name, chunk.args).catch(
+            (err: unknown) => {
+              // Only fall back to custom tools for genuinely unknown generated tools.
+              // Re-throw real execution errors so the LLM gets actionable feedback.
+              if (err instanceof Error && err.message.startsWith('Unknown generated tool:')) {
+                return handleToolCall(song, chunk.name, chunk.args);
+              }
+              throw err;
+            },
           );
 
           ws.send(JSON.stringify({ type: 'tool_result', name: chunk.name, result }));

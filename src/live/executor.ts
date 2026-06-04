@@ -12,6 +12,7 @@ export function getLiveState(song: Song<'1.0.0'>): LiveState {
       id: t.handle.id.toString(),
       name: t.name,
       type: t instanceof MidiTrack ? 'midi' : 'audio',
+      devices: t.devices.map((d) => d.name),
     })),
   };
 }

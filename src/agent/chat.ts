@@ -1,12 +1,15 @@
 export interface LiveState {
   tempo: number;
   trackCount: number;
-  tracks: Array<{ id: string; name: string; type: string }>;
+  tracks: Array<{ id: string; name: string; type: string; devices: string[] }>;
 }
 
 export function buildSystemPrompt(liveState: LiveState): string {
   const trackList = liveState.tracks
-    .map((t, i) => `  ${i + 1}. [${t.type}] "${t.name}" (id: ${t.id})`)
+    .map((t, i) => {
+      const devStr = t.devices.length ? ` — devices: ${t.devices.join(', ')}` : '';
+      return `  ${i + 1}. [${t.type}] "${t.name}" (id: ${t.id})${devStr}`;
+    })
     .join('\n');
 
   return `You are Live Agent, an AI assistant embedded directly in Ableton Live.
@@ -28,8 +31,9 @@ Tools follow the pattern \`{object}_{action}\`. Examples:
 - \`clip_slot_create_midi_clip\` — create a MIDI clip in a session slot, takes \`track_id\`, \`slot_index\`, \`length\`
 - \`clip_set_name\` — rename any clip, takes \`clip_id\`
 - \`midi_clip_set_notes\` — write MIDI notes into a clip, takes \`midi_clip_id\` + \`value\` (array of NoteDescription)
+- \`track_insert_device\` — add a built-in Live device to a track, takes \`track_id\`, \`deviceName\` (exact internal name), \`index\` (0 = first slot). Valid names include: "Analog", "Drift", "Meld", "Operator", "Sampler", "Simpler", "Drum Rack", "Auto Filter", "Auto Pan", "Beat Repeat", "Chorus-Ensemble", "Compressor", "Corpus", "Delay", "Dynamic Tube", "Echo", "EQ Eight", "EQ Three", "Erosion", "Filter Delay", "Flanger", "Frequency Shifter", "Gate", "Glue Compressor", "Grain Delay", "Limiter", "Looper", "Multiband Dynamics", "Overdrive", "Pedal", "Phaser-Flanger", "Redux", "Resonators", "Reverb", "Saturator", "Shifter", "Spectral Blur", "Spectral Time", "Spectrum", "Tuner", "Utility", "Vinyl Distortion", "Vocoder"
 - \`device_parameter_set_value\` — set a device parameter value, takes \`device_parameter_id\` + \`value\`
-- \`get_live_state\` — refresh the full session snapshot (tempo + all tracks with ids)
+- \`get_live_state\` — refresh the full session snapshot (tempo + all tracks with device lists)
 
 ## Key rules
 - Track ids are handle ids (strings). They change if a track is moved. Call \`get_live_state\` to refresh.
