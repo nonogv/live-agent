@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "start": "tsc --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate": "node --import=tsx/esm scripts/generate-tools.ts"
   },
   "keywords": [
     "ableton",
@@ -31,6 +32,8 @@
     "@types/node": "^22.15.29",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.25.5",
+    "ts-morph": "^28.0.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.8.3"
   },
   "engines": {

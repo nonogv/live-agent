@@ -7,7 +7,8 @@ import type { Song, MidiTrack } from "@ableton-extensions/sdk";
 import type { Storage } from "./storage.js";
 import { buildSystemPrompt, type LiveState } from "./agent/chat.js";
 import { handleToolCall, getLiveState } from "./live/executor.js";
-import { TOOL_SCHEMAS } from "./agent/tools.js";
+import { executeGeneratedTool } from "./live/generated-executor.js";
+import { GENERATED_TOOL_SCHEMAS } from "./agent/generated-tools.js";
 import { createProvider, type ProviderMessage } from "./providers/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -146,7 +147,7 @@ async function handleChat(
       model,
       systemPrompt,
       messages: [...history],
-      tools: TOOL_SCHEMAS,
+      tools: GENERATED_TOOL_SCHEMAS,
     })) {
       if (chunk.type === "text") {
         assistantContent += chunk.text;
@@ -154,7 +155,8 @@ async function handleChat(
       } else if (chunk.type === "tool_call") {
         ws.send(JSON.stringify({ type: "tool_start", name: chunk.name, args: chunk.args }));
 
-        const result = await handleToolCall(song, chunk.name, chunk.args);
+        const result = await executeGeneratedTool(song, chunk.name, chunk.args)
+          .catch(() => handleToolCall(song, chunk.name, chunk.args));
 
         ws.send(JSON.stringify({ type: "tool_result", name: chunk.name, result }));
 
