@@ -123,11 +123,29 @@ src/
 
 ## Roadmap
 
-- [ ] Voice input
-- [ ] Multi-turn memory / session persistence
-- [ ] Arrangement view actions
-- [ ] Clip drag/launch from the chat panel
+> **Note:** This roadmap is provisional. The project is in private development — strategy and priorities will be revisited before any public release.
+
+**Near-term**
+- [ ] Confirmation mode — ask before destructive actions (delete track, clear clip)
+- [ ] Autopilot mode — suppress confirmations, chain multiple actions without interruption
+- [ ] Checkpoint system — snapshot Live Set before agent operations, restore any point
+- [ ] Conversation persistence — save and restore history across Live restarts
+
+**Medium-term**
+- [ ] Producer rules — persistent per-session or global agent instructions ("always 4/4", "prefix track names with section")
+- [ ] Rich context — @track / @clip / @device targeting in the chat
+- [ ] Local model support — Ollama and other local LLMs, no API key required
+- [ ] SDK auto-sync — CI step to regenerate tool schemas on SDK updates
+
+**Long-term**
+- [ ] Cloud sync — conversation history and rules across machines
+- [ ] Collaborative sessions — shared agent context for remote co-production
+- [ ] Consumer edition — packaged installer, managed auth, zero technical setup for non-developer musicians
 
 ## License
 
-MIT
+**Apache 2.0 with Commons Clause**
+
+Free to use, modify, and distribute for personal and non-commercial use. You may not sell the software or offer it as a hosted service without a separate commercial license from the author.
+
+See [LICENSE](./LICENSE) for the full terms.
