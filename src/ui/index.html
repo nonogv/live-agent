@@ -290,30 +290,56 @@
       document.getElementById("model-bar").style.display = tab === "chat" ? "flex" : "none";
       document.getElementById("tab-chat").classList.toggle("active", tab === "chat");
       document.getElementById("tab-settings").classList.toggle("active", tab === "settings");
-      if (tab === "settings") liveAgent.send({ type: "get_settings" });
+      if (tab === "settings") setTimeout(() => liveAgent.send({ type: "get_settings" }), 50);
     }
 
-    // ── Bridge to extension ───────────────────────────────────────────────────
-    // The Ableton SDK injects window.liveAgent with send() / onMessage()
-    window.liveAgent = window.liveAgent || {
-      send: (msg) => console.log("[ui→ext]", msg),
-      onMessage: (handler) => { window.__liveAgentHandler = handler; },
+    // ── WebSocket connection ──────────────────────────────────────────────────
+    let ws = null;
+    let wsReady = false;
+    const wsQueue = [];
+
+    function connectWS() {
+      ws = new WebSocket(`ws://${location.host}/`);
+
+      ws.addEventListener("open", () => {
+        wsReady = true;
+        wsQueue.forEach(m => ws.send(m));
+        wsQueue.length = 0;
+      });
+
+      ws.addEventListener("message", (e) => {
+        const msg = JSON.parse(e.data);
+        switch (msg.type) {
+          case "ready":           liveAgent.send({ type: "get_settings" }); break;
+          case "stream_start":    onStreamStart(); break;
+          case "stream_chunk":    onStreamChunk(msg.text); break;
+          case "stream_end":      onStreamEnd(); break;
+          case "tool_start":      onToolStart(msg.name, msg.args); break;
+          case "tool_result":     break;
+          case "error":           onError(msg.message); break;
+          case "history_cleared": onHistoryCleared(); break;
+          case "settings":        onSettings(msg); break;
+          case "settings_saved":  document.getElementById("save-feedback").textContent = "Saved ✓"; setTimeout(() => document.getElementById("save-feedback").textContent = "", 2500); break;
+        }
+      });
+
+      ws.addEventListener("close", () => {
+        wsReady = false;
+        setTimeout(connectWS, 2000);
+      });
+
+      ws.addEventListener("error", () => ws.close());
+    }
+
+    const liveAgent = {
+      send(msg) {
+        const str = JSON.stringify(msg);
+        if (wsReady) ws.send(str);
+        else wsQueue.push(str);
+      }
     };
 
-    liveAgent.onMessage((msg) => {
-      switch (msg.type) {
-        case "ready":           break;
-        case "stream_start":    onStreamStart(); break;
-        case "stream_chunk":    onStreamChunk(msg.text); break;
-        case "stream_end":      onStreamEnd(); break;
-        case "tool_start":      onToolStart(msg.name, msg.args); break;
-        case "tool_result":     onToolResult(msg.name, msg.result); break;
-        case "error":           onError(msg.message); break;
-        case "history_cleared": onHistoryCleared(); break;
-        case "settings":        onSettings(msg); break;
-        case "settings_saved":  document.getElementById("save-feedback").textContent = "Saved ✓"; setTimeout(() => document.getElementById("save-feedback").textContent = "", 2500); break;
-      }
-    });
+    connectWS();
 
     // ── Chat ──────────────────────────────────────────────────────────────────
     function sendMessage() {
