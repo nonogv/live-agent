@@ -47,9 +47,12 @@ const TARGET_CLASSES = [
   "MidiClip",
   "AudioClip",
   "Scene",
+  "CuePoint",
   "Device",
   "DeviceParameter",
   "Simpler",
+  "RackDevice",
+  "Chain",
   "TakeLane",
 ];
 
@@ -332,12 +335,19 @@ function typeToJsonSchema(
   if (type.isBoolean() || text === "boolean") return { type: "boolean", description: "" };
   if (type.isNull() || type.isUndefined() || type.isVoid()) return { type: "null", description: "" };
 
-  // Enum
+  // Enum — resolve actual member names and values instead of raw TS type path
   if (type.isEnum() || type.isEnumLiteral()) {
-    return {
-      type: "string",
-      description: `Enum value. One of: ${type.getText()}`,
-    };
+    const symbol = type.getSymbol() ?? type.getAliasSymbol();
+    const members = symbol?.getDeclarations()
+      .flatMap(d => ("getMembers" in d ? (d as unknown as { getMembers(): unknown[] }).getMembers() : []))
+      .map((m: unknown) => {
+        const member = m as { getName(): string; getValue(): string | number | undefined };
+        return `${member.getValue() ?? 0} (${member.getName()})`;
+      }) ?? [];
+    const desc = members.length > 0
+      ? `One of: ${members.join(", ")}`
+      : `Enum value (number)`;
+    return { type: "number", description: desc };
   }
 
   // Literal union (e.g. "beats" | "tones")
@@ -373,8 +383,11 @@ function typeToJsonSchema(
         startTime: { type: "number", description: "Start time in beats." },
         duration: { type: "number", description: "Duration in beats." },
         velocity: { type: "number", description: "Velocity (0–127). Default: 100." },
+        releaseVelocity: { type: "number", description: "Release velocity (0–127). Optional." },
+        velocityDeviation: { type: "number", description: "Velocity deviation for randomization. Optional." },
         muted: { type: "boolean", description: "Whether the note is muted." },
         probability: { type: "number", description: "Note probability (0–1)." },
+        selected: { type: "boolean", description: "Whether the note is selected." },
       },
       required: ["pitch", "startTime", "duration"],
     };
@@ -441,9 +454,12 @@ function getContextParams(className: string): ToolParam[] {
     case "MidiClip":
     case "AudioClip":
     case "Scene":
+    case "CuePoint":
     case "Device":
     case "DeviceParameter":
     case "Simpler":
+    case "RackDevice":
+    case "Chain":
       return [
         {
           name: `${toSnakeCase(className)}_id`,
@@ -548,7 +564,7 @@ function writeExecutor(tools: GeneratedTool[]) {
     `// Generated at: ${new Date().toISOString()}`,
     ``,
     `import {`,
-    `  MidiTrack, AudioTrack, MidiClip, AudioClip, ClipSlot, Device, DeviceParameter, Simpler, TakeLane,`,
+    `  MidiTrack, AudioTrack, MidiClip, AudioClip, ClipSlot, Device, DeviceParameter, Simpler, TakeLane, RackDevice,`,
     `  type Song,`,
     `} from "@ableton-extensions/sdk";`,
     ``,
@@ -578,24 +594,56 @@ function writeExecutor(tools: GeneratedTool[]) {
     `  throw new Error(\`Clip "\${id}" not found.\`);`,
     `}`,
     ``,
-    `function findDevice(song: Song<"1.0.0">, id: string) {`,
-    `  for (const track of [...song.tracks, ...song.returnTracks]) {`,
-    `    for (const device of track.devices) {`,
-    `      if (device.handle.id.toString() === id) return device;`,
-    `    }`,
-    `  }`,
-    `  throw new Error(\`Device "\${id}" not found.\`);`,
-    `}`,
-    ``,
-    `function findDeviceParameter(song: Song<"1.0.0">, id: string) {`,
-    `  for (const track of [...song.tracks, ...song.returnTracks]) {`,
-    `    for (const device of track.devices) {`,
-    `      for (const param of device.parameters) {`,
-    `        if (param.handle.id.toString() === id) return param;`,
+    `function allDevices(song: Song<"1.0.0">): Device<"1.0.0">[] {`,
+    `  const result: Device<"1.0.0">[] = [];`,
+    `  const allTracks = [...song.tracks, ...song.returnTracks, song.mainTrack];`,
+    `  function collectDevices(devices: Device<"1.0.0">[]) {`,
+    `    for (const d of devices) {`,
+    `      result.push(d);`,
+    `      if (d instanceof RackDevice) {`,
+    `        for (const chain of d.chains) collectDevices(chain.devices);`,
     `      }`,
     `    }`,
     `  }`,
+    `  for (const track of allTracks) collectDevices(track.devices);`,
+    `  return result;`,
+    `}`,
+    ``,
+    `function findDevice(song: Song<"1.0.0">, id: string) {`,
+    `  const device = allDevices(song).find(d => d.handle.id.toString() === id);`,
+    `  if (!device) throw new Error(\`Device "\${id}" not found.\`);`,
+    `  return device;`,
+    `}`,
+    ``,
+    `function findDeviceParameter(song: Song<"1.0.0">, id: string) {`,
+    `  for (const device of allDevices(song)) {`,
+    `    for (const param of device.parameters) {`,
+    `      if (param.handle.id.toString() === id) return param;`,
+    `    }`,
+    `  }`,
     `  throw new Error(\`DeviceParameter "\${id}" not found.\`);`,
+    `}`,
+    ``,
+    `function findChain(song: Song<"1.0.0">, id: string) {`,
+    `  for (const device of allDevices(song)) {`,
+    `    if (device instanceof RackDevice) {`,
+    `      const chain = device.chains.find(c => c.handle.id.toString() === id);`,
+    `      if (chain) return chain;`,
+    `    }`,
+    `  }`,
+    `  throw new Error(\`Chain "\${id}" not found.\`);`,
+    `}`,
+    ``,
+    `function findRackDevice(song: Song<"1.0.0">, id: string) {`,
+    `  const device = findDevice(song, id);`,
+    `  if (!(device instanceof RackDevice)) throw new Error(\`Device "\${id}" is not a RackDevice.\`);`,
+    `  return device;`,
+    `}`,
+    ``,
+    `function findCuePoint(song: Song<"1.0.0">, id: string) {`,
+    `  const cp = song.cuePoints.find(cp => cp.handle.id.toString() === id);`,
+    `  if (!cp) throw new Error(\`CuePoint "\${id}" not found.\`);`,
+    `  return cp;`,
     `}`,
     ``,
     `function findTakeLane(song: Song<"1.0.0">, id: string) {`,
@@ -629,6 +677,9 @@ function writeExecutor(tools: GeneratedTool[]) {
     `    case "Device": return findDevice(song, id);`,
     `    case "DeviceParameter": return findDeviceParameter(song, id);`,
     `    case "TakeLane": return findTakeLane(song, id);`,
+    `    case "RackDevice": case "DrumRack": return findRackDevice(song, id);`,
+    `    case "Chain": case "DrumChain": return findChain(song, id);`,
+    `    case "CuePoint": return findCuePoint(song, id);`,
     `    default: throw new Error(\`Cannot find object of class "\${cls}" by ID\`);`,
     `  }`,
     `}`,
@@ -743,6 +794,24 @@ function generateDispatchBody(tool: GeneratedTool): string {
     case "TakeLane": {
       const idParam = contextParams[0];
       prefix = `const _obj = findTakeLane(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      objectExpr = "_obj";
+      break;
+    }
+    case "CuePoint": {
+      const idParam = contextParams[0];
+      prefix = `const _obj = findCuePoint(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      objectExpr = "_obj";
+      break;
+    }
+    case "RackDevice": {
+      const idParam = contextParams[0];
+      prefix = `const _obj = findRackDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      objectExpr = "_obj";
+      break;
+    }
+    case "Chain": {
+      const idParam = contextParams[0];
+      prefix = `const _obj = findChain(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
       objectExpr = "_obj";
       break;
     }

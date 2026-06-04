@@ -1,8 +1,36 @@
 import { describe, it, expect } from 'vitest';
-import { buildSystemPrompt, type LiveState } from './chat.js';
+import { buildSystemPrompt, type LiveState, type TrackInfo } from './chat.js';
 import type { ToolSchema } from '../providers/index.js';
 
-const emptyState: LiveState = { tempo: 120, trackCount: 0, tracks: [] };
+const emptyMixer = {
+  volume: { id: 'v', value: 0.85 },
+  panning: { id: 'p', value: 0 },
+  sends: [],
+};
+
+const emptyTrack = (overrides: Partial<TrackInfo> = {}): TrackInfo => ({
+  id: '1',
+  name: 'Track',
+  type: 'midi',
+  mute: false,
+  solo: false,
+  arm: false,
+  mixer: emptyMixer,
+  devices: [],
+  sessionClips: [],
+  arrangementClips: [],
+  takeLanes: [],
+  ...overrides,
+});
+
+const emptyState: LiveState = {
+  tempo: 120,
+  trackCount: 0,
+  tracks: [],
+  mainTrack: { id: 'main', mixer: emptyMixer },
+  scenes: [],
+  cuePoints: [],
+};
 
 const minimalTools: ToolSchema[] = [
   {
@@ -38,32 +66,32 @@ describe('buildSystemPrompt', () => {
 
   it('includes track count in the header', () => {
     const state: LiveState = {
-      tempo: 120,
+      ...emptyState,
       trackCount: 3,
       tracks: [
-        { id: '1', name: 'Kick', type: 'audio', devices: [], sessionClips: [] },
-        { id: '2', name: 'Bass', type: 'midi', devices: [], sessionClips: [] },
-        { id: '3', name: 'Chords', type: 'midi', devices: [], sessionClips: [] },
+        emptyTrack({ id: '1', name: 'Kick', type: 'audio' }),
+        emptyTrack({ id: '2', name: 'Bass', type: 'midi' }),
+        emptyTrack({ id: '3', name: 'Chords', type: 'midi' }),
       ],
     };
-    expect(buildSystemPrompt(state, minimalTools)).toContain('Tracks (3)');
+    expect(buildSystemPrompt(state, minimalTools)).toContain('Tracks (3');
   });
 
   it('lists each track with its name, id and type', () => {
     const state: LiveState = {
-      tempo: 120,
+      ...emptyState,
       trackCount: 2,
       tracks: [
-        { id: '42', name: 'Bass', type: 'midi', devices: [], sessionClips: [] },
-        { id: '99', name: 'Room', type: 'audio', devices: [], sessionClips: [] },
+        emptyTrack({ id: '42', name: 'Bass', type: 'midi' }),
+        emptyTrack({ id: '99', name: 'Room', type: 'audio' }),
       ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('"Bass"');
-    expect(prompt).toContain('id: 42');
+    expect(prompt).toContain('id:42');
     expect(prompt).toContain('[midi]');
     expect(prompt).toContain('"Room"');
-    expect(prompt).toContain('id: 99');
+    expect(prompt).toContain('id:99');
     expect(prompt).toContain('[audio]');
   });
 
@@ -80,24 +108,24 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/creat.*name|name.*after creat/i);
   });
 
-  it('lists device parameters inline when a track has devices', () => {
+  it('lists device parameters with range info', () => {
     const state: LiveState = {
-      tempo: 120,
+      ...emptyState,
       trackCount: 1,
       tracks: [
-        {
+        emptyTrack({
           id: '1',
           name: 'Bass',
-          type: 'midi',
-          sessionClips: [],
           devices: [
             {
               id: '10',
               name: 'Analog',
-              parameters: [{ id: '20', name: 'Volume', value: 0.8 }],
+              parameters: [
+                { id: '20', name: 'Volume', value: 0.8, min: 0, max: 1, defaultValue: 0.85 },
+              ],
             },
           ],
-        },
+        }),
       ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
@@ -108,29 +136,41 @@ describe('buildSystemPrompt', () => {
 
   it('lists session clip names and MIDI notes', () => {
     const state: LiveState = {
-      tempo: 120,
+      ...emptyState,
       trackCount: 1,
       tracks: [
-        {
+        emptyTrack({
           id: '1',
           name: 'Bass',
-          type: 'midi',
-          devices: [],
           sessionClips: [
             {
               id: '55',
               name: 'Bass Loop',
               slotIndex: 0,
               duration: 16,
+              looping: true,
+              muted: false,
               notes: [{ pitch: 40, startTime: 0, duration: 0.25, velocity: 100 }],
             },
           ],
-        },
+        }),
       ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Bass Loop');
     expect(prompt).toContain('id:55');
     expect(prompt).toContain('p:40');
+  });
+
+  it('lists scenes and cue points', () => {
+    const state: LiveState = {
+      ...emptyState,
+      scenes: [{ id: 's1', name: 'Verse', tempo: 120 }],
+      cuePoints: [{ id: 'cp1', name: 'Drop', time: 32 }],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('Verse');
+    expect(prompt).toContain('Drop');
+    expect(prompt).toContain('@32');
   });
 });
