@@ -221,8 +221,8 @@ async function handleChat(
   } catch (err) {
     const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
     dbg("[Live Agent] Chat error:", stack);
-    const message = err instanceof Error ? err.message : String(err);
-    ws.send(JSON.stringify({ type: "error", message }));
+    // Send full stack to UI so we can see exactly where the error originates.
+    ws.send(JSON.stringify({ type: "error", message: stack }));
     history.pop();
   }
 }
@@ -233,38 +233,54 @@ async function handleDebug(
   model: string,
   storage: Storage
 ): Promise<void> {
-  const lines: string[] = [];
-  const add = (s: string) => { lines.push(s); dbg("[debug]", s); };
+  // Stream each diagnostic line as a text chunk so it appears in chat
+  // regardless of whether the debug_result message type is handled.
+  const emit = (s: string) => {
+    dbg("[debug]", s);
+    ws.send(JSON.stringify({ type: "stream_chunk", text: s + "\n" }));
+  };
 
-  add(`Node version: ${process.version}`);
-  add(`Platform: ${process.platform}`);
+  ws.send(JSON.stringify({ type: "stream_start" }));
 
-  // URL test
+  emit(`Node: ${process.version}  platform: ${process.platform}`);
+  emit(`cwd: ${process.cwd()}`);
+
+  // Probe require('url') without touching any global
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const u = new (URL as any)("https://example.com/path?q=1");
-    add(`URL: OK (host=${u.host})`);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const urlMod = require("url") as typeof import("url");
+    const u = new urlMod.URL("https://example.com/path?q=1");
+    emit(`require("url").URL: OK  host=${u.host}`);
   } catch (e) {
-    add(`URL: FAIL – ${e}`);
+    emit(`require("url").URL: FAIL – ${e}`);
   }
 
-  // fetch test
-  add(`fetch: ${typeof fetch}`);
-  add(`globalThis.fetch: ${typeof globalThis.fetch}`);
+  // Probe https.request (does not open a connection, just checks the API)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const httpsMod = require("https") as typeof import("https");
+    emit(`require("https"): OK  type=${typeof httpsMod.request}`);
+  } catch (e) {
+    emit(`require("https"): FAIL – ${e}`);
+  }
 
-  // Provider init test (does not make a network request)
+  // Provider factory (no network call)
   const apiKey = storage.getApiKey(providerId);
-  add(`API key set: ${!!apiKey} (provider=${providerId})`);
-  if (apiKey) {
-    try {
-      createProvider(providerId, apiKey);
-      add(`createProvider: OK`);
-    } catch (e) {
-      add(`createProvider: FAIL – ${e}`);
-    }
+  emit(`API key set: ${!!apiKey}  provider=${providerId}  model=${model}`);
+  try {
+    createProvider(providerId, apiKey ?? "test");
+    emit(`createProvider: OK`);
+  } catch (e) {
+    emit(`createProvider: FAIL – ${e}`);
   }
 
-  add(`Log file: ${LOG_FILE}`);
+  // File write probe
+  try {
+    fs.writeFileSync(`${process.cwd()}/debug-probe.txt`, `ok ${Date.now()}\n`);
+    emit(`fs.writeFileSync: OK  (${process.cwd()}/debug-probe.txt)`);
+  } catch (e) {
+    emit(`fs.writeFileSync: FAIL – ${e}`);
+  }
 
-  ws.send(JSON.stringify({ type: "debug_result", lines }));
+  ws.send(JSON.stringify({ type: "stream_end" }));
 }
