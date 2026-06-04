@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist/extension.js",
   "scripts": {
-    "build": "tsc",
-    "start": "tsc --watch",
+    "build": "tsc --noEmit && tsx build.ts --production",
+    "start": "tsx build.ts && extensions-cli run",
     "typecheck": "tsc --noEmit",
     "generate": "node --import=tsx/esm scripts/generate-tools.ts",
     "test": "vitest run",
@@ -31,9 +31,10 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@ableton-extensions/cli": "file:../extensions-sdk-1.0.0-beta.0/ableton-extensions-cli-1.0.0-beta.0.tgz",
     "@types/node": "^22.15.29",
     "@types/ws": "^8.18.1",
-    "esbuild": "^0.25.5",
+    "esbuild": "^0.25.12",
     "ts-morph": "^28.0.0",
     "tsx": "^4.22.4",
     "typescript": "^5.8.3",
