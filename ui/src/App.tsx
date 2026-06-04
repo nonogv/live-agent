@@ -53,8 +53,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const last = msgs[msgs.length - 1];
       if (last?.streaming) {
         msgs[msgs.length - 1] = { ...last, content: last.content + action.text };
+      } else {
+        // After a tool call in debug mode the last message is a TOOL card,
+        // not a streaming bubble — start a new agent bubble for the follow-up round.
+        msgs.push({ id: nextId(), role: 'agent', content: action.text, streaming: true });
       }
-      return { ...state, messages: msgs };
+      return { ...state, streaming: true, messages: msgs };
     }
 
     case 'STREAM_END': {
