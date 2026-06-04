@@ -1,13 +1,29 @@
+export interface DeviceInfo {
+  id: string;
+  name: string;
+  parameters: Array<{ id: string; name: string; value: number }>;
+}
+
 export interface LiveState {
   tempo: number;
   trackCount: number;
-  tracks: Array<{ id: string; name: string; type: string; devices: string[] }>;
+  tracks: Array<{ id: string; name: string; type: string; devices: DeviceInfo[] }>;
 }
 
 export function buildSystemPrompt(liveState: LiveState): string {
   const trackList = liveState.tracks
     .map((t, i) => {
-      const devStr = t.devices.length ? ` — devices: ${t.devices.join(', ')}` : '';
+      const devStr = t.devices.length
+        ? '\n' +
+          t.devices
+            .map((d) => {
+              const paramStr = d.parameters
+                .map((p) => `      - ${p.name} (id:${p.id}) = ${p.value}`)
+                .join('\n');
+              return `    Device: "${d.name}" (id:${d.id})${paramStr ? '\n' + paramStr : ''}`;
+            })
+            .join('\n')
+        : '';
       return `  ${i + 1}. [${t.type}] "${t.name}" (id: ${t.id})${devStr}`;
     })
     .join('\n');

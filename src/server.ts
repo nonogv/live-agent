@@ -82,6 +82,14 @@ export async function startServer(
 
     ws.send(JSON.stringify({ type: 'ready' }));
 
+    // Restore previous conversation for the human — skip internal tool messages.
+    const visibleHistory = history
+      .filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content))
+      .map((m) => ({ role: m.role === 'assistant' ? 'agent' : 'user', content: m.content }));
+    if (visibleHistory.length > 0) {
+      ws.send(JSON.stringify({ type: 'history', messages: visibleHistory }));
+    }
+
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
@@ -230,7 +238,7 @@ async function handleChat(
   try {
     const provider = createProvider(providerId, apiKey);
     const song = getSong();
-    const liveState = getLiveState(song);
+    const liveState = await getLiveState(song);
     const systemPrompt = buildSystemPrompt(liveState);
 
     // Agentic loop: keep calling the provider until it returns a final text

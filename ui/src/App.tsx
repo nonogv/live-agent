@@ -10,6 +10,7 @@ import type { ChatMessage, ServerMessage, SettingsPayload } from './types';
 // ── Chat state via useReducer ────────────────────────────────────────────────
 
 type ChatAction =
+  | { type: 'LOAD_HISTORY'; messages: Array<{ role: 'user' | 'agent'; content: string }> }
   | { type: 'ADD_USER'; text: string }
   | { type: 'STREAM_START' }
   | { type: 'STREAM_CHUNK'; text: string }
@@ -32,6 +33,16 @@ function nextId() {
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case 'LOAD_HISTORY':
+      return {
+        ...state,
+        messages: action.messages.map((m) => ({
+          id: nextId(),
+          role: m.role,
+          content: m.content,
+        })),
+      };
+
     case 'ADD_USER':
       return {
         ...state,
@@ -174,6 +185,9 @@ export function App() {
           setSettings((prev) =>
             prev ? { ...prev, keys: { ...prev.keys, [msg.provider]: null } } : prev,
           );
+          break;
+        case 'history':
+          dispatch({ type: 'LOAD_HISTORY', messages: msg.messages });
           break;
       }
     },

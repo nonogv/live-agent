@@ -4,17 +4,28 @@ import type { LiveState } from '../agent/chat.js';
 /**
  * Builds the LiveState snapshot injected into the system prompt each turn.
  */
-export function getLiveState(song: Song<'1.0.0'>): LiveState {
-  return {
-    tempo: song.tempo,
-    trackCount: song.tracks.length,
-    tracks: song.tracks.map((t) => ({
+export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
+  const tracks = await Promise.all(
+    song.tracks.map(async (t) => ({
       id: t.handle.id.toString(),
       name: t.name,
       type: t instanceof MidiTrack ? 'midi' : 'audio',
-      devices: t.devices.map((d) => d.name),
+      devices: await Promise.all(
+        t.devices.map(async (d) => ({
+          id: d.handle.id.toString(),
+          name: d.name,
+          parameters: await Promise.all(
+            d.parameters.map(async (p) => ({
+              id: p.handle.id.toString(),
+              name: p.name,
+              value: await p.getValue(),
+            })),
+          ),
+        })),
+      ),
     })),
-  };
+  );
+  return { tempo: song.tempo, trackCount: song.tracks.length, tracks };
 }
 
 /**
@@ -28,7 +39,7 @@ export async function handleToolCall(
 ): Promise<unknown> {
   switch (name) {
     case 'get_live_state':
-      return getLiveState(song);
+      return await getLiveState(song);
 
     default:
       throw new Error(`Unknown tool: "${name}". Available custom tools: get_live_state.`);
