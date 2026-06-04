@@ -28,19 +28,6 @@ await esbuild.build({
   external: ["@ableton-extensions/sdk"],
   // esbuild outputs CJS so import.meta.url is unavailable; inject a
   // synthetic value so fileURLToPath() resolves __dirname correctly.
-  // Declare browser-like globals at the very top of the CJS bundle file.
-  // In a single-file CJS bundle every nested function sees top-level `var`
-  // declarations via closure, so this reliably shadows the missing sandbox
-  // globals without depending on `globalThis` being writable or any lazy
-  // initialiser ordering.
-  banner: {
-    js: [
-      `var _nu = require("url");`,
-      `var URL = (typeof URL !== "undefined") ? URL : _nu.URL;`,
-      `var URLSearchParams = (typeof URLSearchParams !== "undefined") ? URLSearchParams : _nu.URLSearchParams;`,
-      `try { var _und = require("undici"); if (typeof fetch === "undefined") { var fetch = _und.fetch; var Headers = _und.Headers; var Request = _und.Request; var Response = _und.Response; } } catch(_e) {}`,
-    ].join("\n"),
-  },
   define: {
     "global": "globalThis",
     "import.meta.url": JSON.stringify(`file://${path.resolve(outfile)}`),

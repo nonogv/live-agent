@@ -25,9 +25,6 @@
   "license": "MIT",
   "dependencies": {
     "@ableton-extensions/sdk": "file:../extensions-sdk-1.0.0-beta.0/ableton-extensions-sdk-1.0.0-beta.0.tgz",
-    "@anthropic-ai/sdk": "^0.52.0",
-    "@google/generative-ai": "^0.24.0",
-    "openai": "^4.100.0",
     "ws": "^8.21.0"
   },
   "devDependencies": {

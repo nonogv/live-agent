@@ -1,15 +1,15 @@
-import { OpenAIProvider } from "./openai.js";
-import { AnthropicProvider } from "./anthropic.js";
-import { GeminiProvider } from "./gemini.js";
+import {
+  openaiStream,
+  anthropicStream,
+  geminiStream,
+  type ProviderMsg,
+  type ToolSchema as HttpToolSchema,
+  type HttpChunk,
+} from "./http-stream.js";
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
-export interface ProviderMessage {
-  role: "user" | "assistant" | "tool";
-  content: string;
-  toolCall?: ToolCall;
-  toolCallId?: string;
-}
+export type { ProviderMsg as ProviderMessage };
 
 export interface ToolCall {
   id: string;
@@ -34,7 +34,7 @@ export type StreamChunk =
 export interface ChatOptions {
   model: string;
   systemPrompt: string;
-  messages: ProviderMessage[];
+  messages: ProviderMsg[];
   tools: ToolSchema[];
 }
 
@@ -81,15 +81,37 @@ export type ProviderId = keyof typeof PROVIDERS;
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
+/** Adapts the http-stream generators to the ProviderAdapter interface. */
+function makeAdapter(
+  fn: (
+    apiKey: string,
+    model: string,
+    systemPrompt: string,
+    messages: ProviderMsg[],
+    tools: HttpToolSchema[]
+  ) => AsyncGenerator<HttpChunk>
+): (apiKey: string) => ProviderAdapter {
+  return (apiKey) => ({
+    chat({ model, systemPrompt, messages, tools }): AsyncIterable<StreamChunk> {
+      return fn(
+        apiKey,
+        model,
+        systemPrompt,
+        messages,
+        tools as HttpToolSchema[]
+      ) as AsyncIterable<StreamChunk>;
+    },
+  });
+}
+
+const adapters = {
+  openai:    makeAdapter(openaiStream),
+  anthropic: makeAdapter(anthropicStream),
+  gemini:    makeAdapter(geminiStream),
+};
+
 export function createProvider(providerId: string, apiKey: string): ProviderAdapter {
-  switch (providerId) {
-    case "openai":
-      return new OpenAIProvider(apiKey);
-    case "anthropic":
-      return new AnthropicProvider(apiKey);
-    case "gemini":
-      return new GeminiProvider(apiKey);
-    default:
-      throw new Error(`Unknown provider: ${providerId}`);
-  }
+  const factory = adapters[providerId as keyof typeof adapters];
+  if (!factory) throw new Error(`Unknown provider: ${providerId}`);
+  return factory(apiKey);
 }
