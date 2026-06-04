@@ -21,9 +21,18 @@ Your API keys are stored locally in Live's extension storage and never leave you
 
 ## Requirements
 
-- **Ableton Live 12 Suite** version **12.4.5 beta** or later
+> **Note:** Live Agent is currently a developer preview — there is no packaged installer yet. You need to build from source.
+
+**To run the extension:**
+- **Ableton Live 12** version **12.4.5 beta** or later (any edition that supports Extensions)
+- An API key from at least one AI provider:
+  - [Google AI Studio](https://aistudio.google.com) — **free tier available**, no credit card required. Good starting point.
+  - [OpenAI](https://platform.openai.com) — pay-as-you-go
+  - [Anthropic](https://console.anthropic.com) — pay-as-you-go
+
+**To build from source (additional):**
 - **Node.js v24.16.0** (LTS) or higher — [download](https://nodejs.org)
-- At least one API key from OpenAI, Anthropic, or Google AI Studio
+- The Ableton Extensions SDK (see Setup below)
 
 ## Setup
 
