@@ -206,9 +206,9 @@
         <h2>API Keys</h2>
         <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.5">
           Keys are stored locally in Live's extension storage and never leave your computer.
-          Get keys from <a href="https://platform.openai.com" style="color:var(--accent)">OpenAI</a>,
-          <a href="https://console.anthropic.com" style="color:var(--accent)">Anthropic</a>, or
-          <a href="https://aistudio.google.com" style="color:var(--accent)">Google AI Studio</a>.
+          Get keys from <a href="https://platform.openai.com" class="ext-link" style="color:var(--accent)">OpenAI</a>,
+          <a href="https://console.anthropic.com" class="ext-link" style="color:var(--accent)">Anthropic</a>, or
+          <a href="https://aistudio.google.com" class="ext-link" style="color:var(--accent)">Google AI Studio</a>.
         </p>
         <div class="provider-row">
           <div class="provider-dot unset" id="dot-openai"></div>
@@ -307,6 +307,14 @@
       document.getElementById("tab-settings").classList.toggle("active", tab === "settings");
       if (tab === "settings") setTimeout(() => liveAgent.send({ type: "get_settings" }), 50);
     }
+
+    // ── External links → open in system browser via extension ────────────────
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a.ext-link");
+      if (!a) return;
+      e.preventDefault();
+      liveAgent.send({ type: "open_url", url: a.href });
+    });
 
     // ── WebSocket connection ──────────────────────────────────────────────────
     let ws = null;

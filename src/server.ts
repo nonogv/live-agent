@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { exec } from "node:child_process";
 import { WebSocketServer, WebSocket } from "ws";
 import type { Song } from "@ableton-extensions/sdk";
 import type { Storage } from "./storage.js";
@@ -73,7 +74,8 @@ type WebViewMessage =
   | { type: "chat"; text: string; provider: string; model: string }
   | { type: "clear_history" }
   | { type: "get_settings" }
-  | { type: "save_settings"; keys: Record<string, string>; defaultProvider: string; defaultModel: string };
+  | { type: "save_settings"; keys: Record<string, string>; defaultProvider: string; defaultModel: string }
+  | { type: "open_url"; url: string };
 
 async function handleMessage(
   ws: WebSocket,
@@ -112,6 +114,15 @@ async function handleMessage(
       storage.setDefaults(msg.defaultProvider, msg.defaultModel);
       ws.send(JSON.stringify({ type: "settings_saved" }));
       break;
+
+    case "open_url": {
+      const url = msg.url;
+      if (url.startsWith("https://")) {
+        const cmd = process.platform === "win32" ? `start "" "${url}"` : `open "${url}"`;
+        exec(cmd, (err) => { if (err) console.error("[Live Agent] Failed to open URL:", err); });
+      }
+      break;
+    }
   }
 }
 
