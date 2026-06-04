@@ -25,11 +25,11 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@ableton-extensions/sdk": "file:../extensions-sdk-1.0.0-beta.0/ableton-extensions-sdk-1.0.0-beta.0.tgz",
+    "@ableton-extensions/sdk": "file:./vendor/ableton-extensions-sdk-1.0.0-beta.0.tgz",
     "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@ableton-extensions/cli": "file:../extensions-sdk-1.0.0-beta.0/ableton-extensions-cli-1.0.0-beta.0.tgz",
+    "@ableton-extensions/cli": "file:./vendor/ableton-extensions-cli-1.0.0-beta.0.tgz",
     "@types/node": "^22.15.29",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.25.12",
