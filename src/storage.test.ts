@@ -121,3 +121,51 @@ describe('Storage — masked keys', () => {
     expect(masked.gemini).toBe('••••••••');
   });
 });
+
+describe('Storage — conversation history', () => {
+  it('round-trips saveHistory / loadHistory', () => {
+    const s = makeStorage();
+    const messages = [
+      { role: 'user' as const, content: 'Hello' },
+      { role: 'assistant' as const, content: 'Hi there!' },
+      { role: 'user' as const, content: 'How are you?' },
+    ];
+    s.saveHistory(messages);
+    expect(s.loadHistory()).toEqual(messages);
+  });
+
+  it('returns [] when no history file exists', () => {
+    const s = makeStorage();
+    expect(s.loadHistory()).toEqual([]);
+  });
+
+  it('caps history at 100 messages (trims oldest)', () => {
+    const s = makeStorage();
+    const messages = Array.from({ length: 110 }, (_, i) => ({
+      role: 'user' as const,
+      content: `Message ${i}`,
+    }));
+    s.saveHistory(messages);
+    const loaded = s.loadHistory();
+    expect(loaded).toHaveLength(100);
+    expect(loaded[0].content).toBe('Message 10');
+    expect(loaded[99].content).toBe('Message 109');
+  });
+
+  it('returns [] when history.json contains invalid JSON', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+    fs.writeFileSync(path.join(dir, 'history.json'), 'not valid json {{{{');
+    const s = makeStorageAt(dir);
+    expect(s.loadHistory()).toEqual([]);
+  });
+
+  it('clearHistory makes loadHistory return []', () => {
+    const s = makeStorage();
+    const messages = [{ role: 'user' as const, content: 'Hello' }];
+    s.saveHistory(messages);
+    expect(s.loadHistory()).toHaveLength(1);
+    s.clearHistory();
+    expect(s.loadHistory()).toEqual([]);
+  });
+});

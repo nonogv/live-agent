@@ -38,7 +38,7 @@ export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
 ): Promise<LiveAgentServer> {
-  const history: ProviderMessage[] = [];
+  const history = storage.loadHistory();
 
   const httpServer = http.createServer((req, res) => {
     if (req.url === '/' || req.url === '/index.html') {
@@ -114,6 +114,7 @@ async function handleMessage(
 
     case 'clear_history':
       history.length = 0;
+      storage.clearHistory();
       ws.send(JSON.stringify({ type: 'history_cleared' }));
       break;
 
@@ -249,6 +250,7 @@ async function handleChat(
     }
 
     ws.send(JSON.stringify({ type: 'stream_end' }));
+    storage.saveHistory(history);
   } catch (err) {
     const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
     dbg('[Live Agent] Chat error:', stack);
