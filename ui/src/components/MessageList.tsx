@@ -7,10 +7,11 @@ import type { ChatMessage } from '../types';
 interface MessageListProps {
   messages: ChatMessage[];
   onSuggestion: (text: string) => void;
+  onConfirm: (toolCallId: string, confirmed: boolean) => void;
 }
 
 /** Scrollable list of chat messages with auto-scroll on new content. */
-export function MessageList({ messages, onSuggestion }: MessageListProps) {
+export function MessageList({ messages, onSuggestion, onConfirm }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export function MessageList({ messages, onSuggestion }: MessageListProps) {
       {messages.length === 0 ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (
-        messages.map((m) => <MessageBubble key={m.id} message={m} />)
+        messages.map((m) => <MessageBubble key={m.id} message={m} onConfirm={onConfirm} />)
       )}
       <div ref={bottomRef} />
     </div>

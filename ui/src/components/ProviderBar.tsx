@@ -7,9 +7,11 @@ interface ProviderBarProps {
   model: string;
   models: { id: string; label: string }[];
   debugMode: boolean;
+  autopilot: boolean;
   onProviderChange: (p: string) => void;
   onModelChange: (m: string) => void;
   onToggleDebug: () => void;
+  onToggleAutopilot: () => void;
   onDiagnose: () => void;
   onClear: () => void;
 }
@@ -21,9 +23,11 @@ export function ProviderBar({
   model,
   models,
   debugMode,
+  autopilot,
   onProviderChange,
   onModelChange,
   onToggleDebug,
+  onToggleAutopilot,
   onDiagnose,
   onClear,
 }: ProviderBarProps) {
@@ -59,6 +63,14 @@ export function ProviderBar({
         title="Show tool calls in chat"
       >
         Tools
+      </button>
+
+      <button
+        className={`${styles.btn}${autopilot ? ` ${styles.active}` : ''}`}
+        onClick={onToggleAutopilot}
+        title="Skip confirmation for destructive actions"
+      >
+        Autopilot
       </button>
 
       <button className={styles.btn} onClick={onDiagnose} title="Run environment diagnostics">

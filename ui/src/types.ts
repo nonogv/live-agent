@@ -1,5 +1,5 @@
 /** All message roles that can appear in the chat panel. */
-export type MessageRole = 'user' | 'agent' | 'tool' | 'error';
+export type MessageRole = 'user' | 'agent' | 'tool' | 'error' | 'confirm';
 
 /** A single message in the chat history. */
 export interface ChatMessage {
@@ -11,6 +11,8 @@ export interface ChatMessage {
   toolName?: string;
   /** Tool args, set for role === 'tool'. */
   toolArgs?: unknown;
+  /** Tool call ID, set for role === 'confirm'. */
+  toolCallId?: string;
   /** Whether this message is still being streamed. */
   streaming?: boolean;
 }
@@ -48,6 +50,7 @@ export type ServerMessage =
   | { type: 'stream_end' }
   | { type: 'tool_start'; name: string; args: unknown }
   | { type: 'tool_result'; name: string; result: unknown }
+  | { type: 'confirm_request'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'error'; message: string }
   | { type: 'history_cleared' }
   | SettingsPayload
@@ -69,4 +72,6 @@ export type ClientMessage =
   | { type: 'clear_key'; provider: string }
   | { type: 'open_url'; url: string }
   | { type: 'console_log'; level: string; message: string }
-  | { type: 'debug'; provider: string; model: string };
+  | { type: 'debug'; provider: string; model: string }
+  | { type: 'set_autopilot'; enabled: boolean }
+  | { type: 'confirm_response'; confirmed: boolean; toolCallId: string };

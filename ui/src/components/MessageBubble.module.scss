@@ -31,6 +31,50 @@
     border: 1px solid #3d1a1a;
     color: #e07070;
   }
+
+  &.confirm {
+    background: #1a1f2a;
+    border: 1px solid #3a3a1a;
+    font-family: $mono;
+    font-size: 11px;
+    color: $text-dim;
+  }
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.confirmYes {
+  background: #1e3a1e;
+  border: 1px solid #3a6a3a;
+  color: #6abf6a;
+  border-radius: $radius;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #254a25;
+  }
+}
+
+.confirmNo {
+  background: #3a1e1e;
+  border: 1px solid #6a3a3a;
+  color: #e07070;
+  border-radius: $radius;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #4a2525;
+  }
 }
 
 .label {

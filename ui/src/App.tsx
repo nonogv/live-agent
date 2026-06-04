@@ -15,6 +15,8 @@ type ChatAction =
   | { type: 'STREAM_CHUNK'; text: string }
   | { type: 'STREAM_END' }
   | { type: 'TOOL_START'; name: string; args: unknown }
+  | { type: 'CONFIRM_REQUEST'; toolCallId: string; toolName: string; args: unknown }
+  | { type: 'CONFIRM_RESPOND'; toolCallId: string }
   | { type: 'ERROR'; message: string }
   | { type: 'CLEAR' };
 
@@ -75,6 +77,28 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ],
       };
 
+    case 'CONFIRM_REQUEST':
+      return {
+        ...state,
+        messages: [
+          ...state.messages,
+          {
+            id: `confirm-${action.toolCallId}`,
+            role: 'confirm',
+            content: '',
+            toolName: action.toolName,
+            toolArgs: action.args,
+            toolCallId: action.toolCallId,
+          },
+        ],
+      };
+
+    case 'CONFIRM_RESPOND':
+      return {
+        ...state,
+        messages: state.messages.filter((m) => m.toolCallId !== action.toolCallId),
+      };
+
     case 'ERROR':
       return {
         ...state,
@@ -96,6 +120,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 export function App() {
   const [tab, setTab] = useState<'chat' | 'settings'>('chat');
   const [debugMode, setDebugMode] = useState(false);
+  const [autopilot, setAutopilot] = useState(false);
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
   const [chatState, dispatch] = useReducer(chatReducer, { messages: [], streaming: false });
 
@@ -118,6 +143,14 @@ export function App() {
           break;
         case 'tool_start':
           if (debugMode) dispatch({ type: 'TOOL_START', name: msg.name, args: msg.args });
+          break;
+        case 'confirm_request':
+          dispatch({
+            type: 'CONFIRM_REQUEST',
+            toolCallId: msg.toolCallId,
+            toolName: msg.toolName,
+            args: msg.args,
+          });
           break;
         case 'error':
           dispatch({ type: 'ERROR', message: msg.message });
@@ -165,6 +198,17 @@ export function App() {
 
   function handleToggleDebug() {
     setDebugMode((d) => !d);
+  }
+
+  function handleToggleAutopilot() {
+    const next = !autopilot;
+    setAutopilot(next);
+    sendMsg({ type: 'set_autopilot', enabled: next });
+  }
+
+  function handleConfirm(toolCallId: string, confirmed: boolean) {
+    dispatch({ type: 'CONFIRM_RESPOND', toolCallId });
+    sendMsg({ type: 'confirm_response', confirmed, toolCallId });
   }
 
   function handleSaveSettings(payload: {
@@ -218,9 +262,11 @@ export function App() {
           model={model}
           models={models}
           debugMode={debugMode}
+          autopilot={autopilot}
           onProviderChange={setProvider}
           onModelChange={setModel}
           onToggleDebug={handleToggleDebug}
+          onToggleAutopilot={handleToggleAutopilot}
           onDiagnose={handleDiagnose}
           onClear={handleClear}
         />
@@ -232,6 +278,7 @@ export function App() {
           streaming={chatState.streaming}
           onSend={handleSend}
           onSuggestion={handleSuggestion}
+          onConfirm={handleConfirm}
         />
       ) : (
         <SettingsPanel
