@@ -17,11 +17,34 @@ Any student, hobbyist, or musician must be able to run the extension with a free
 - **Runtime:** Node.js v24 (ESM, `"type": "module"`)
 - **Language:** TypeScript with `"module": "NodeNext"` / `"moduleResolution": "NodeNext"`
 - **Extension host:** Ableton Extensions SDK (`@ableton-extensions/sdk`)
-- **UI:** Vanilla HTML/CSS/JS webview (no framework — keep it lightweight)
+- **UI:** React (functional components, hooks, no class components) — built with Vite, served by the local HTTP server
 - **AI providers:** OpenAI, Anthropic, Google Gemini (user-supplied keys)
 - **Testing:** Vitest
 
 ---
+
+## React standards
+
+- **Functional components only** — no class components.
+- **Hooks for everything** — `useState`, `useEffect`, `useRef`, `useCallback`, `useMemo` as appropriate. Extract custom hooks for reusable logic.
+- **Keep components small and focused** — one responsibility per component. Split when a component grows beyond ~100 lines.
+- **Streaming state** — use `useReducer` or a stream-aware state pattern for chat message streams, not ad-hoc `useState` chains.
+- **No prop drilling** — use context or a lightweight state manager (Zustand or React's built-in context) if state needs to cross more than two levels.
+- **CSS modules or Tailwind** — no inline styles except for truly dynamic values. Keep styles colocated with components.
+- **No `any` in component props** — type all props explicitly; prefer interfaces over type aliases for component props.
+
+```tsx
+// ❌
+export default function Message(props: any) { ... }
+
+// ✅
+interface MessageProps {
+  role: "user" | "assistant";
+  content: string;
+  streaming?: boolean;
+}
+export function Message({ role, content, streaming = false }: MessageProps) { ... }
+```
 
 ## TypeScript standards
 

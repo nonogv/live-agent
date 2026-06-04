@@ -30,6 +30,16 @@ First contact with the real extension host. Goal: make "Create a MIDI track name
 
 Ship when alpha is stable and all v1 items are done.
 
+### UI migration to React + Vite
+*Do this before building any new UI features — it's the foundation.*
+- [ ] Add Vite + React + TypeScript to the project (`npm create vite ui -- --template react-ts` or equivalent)
+- [ ] Rebuild the chat panel as React components (`<MessageList>`, `<MessageBubble>`, `<ChatInput>`, `<ProviderBar>`)
+- [ ] Rebuild the settings panel as React components (`<ApiKeyField>`, `<ProviderSelector>`, `<ModelSelector>`)
+- [ ] Wire WebSocket connection to React state (custom `useWebSocket` hook)
+- [ ] Handle streaming text updates reactively (append to message in state as chunks arrive)
+- [ ] Configure `server.ts` to serve the Vite build output instead of `index.html`
+- [ ] Remove the old `src/ui/index.html`
+
 ### Conversation persistence
 - [ ] Add `saveHistory()` / `loadHistory()` to `Storage` class — cap at ~50 messages
 - [ ] Load history from storage on server start, save after each completed turn

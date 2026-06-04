@@ -8,7 +8,7 @@ Full standards are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 - **Imports:** always use `.js` extension for local imports
 - **No `any`** — use `unknown` and narrow with type guards
 - **Testing:** Vitest, tests in `*.test.ts` files next to source
-- **UI:** vanilla HTML/CSS/JS (no React, no framework)
+- **UI:** React — functional components and hooks only, built with Vite. No class components.
 - **Generated files:** `src/agent/generated-tools.ts` and `src/live/generated-executor.ts` — never edit by hand
 
 ## Every PR / meaningful change

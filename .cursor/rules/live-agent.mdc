@@ -19,7 +19,7 @@ Full standards are in [`CONTRIBUTING.md`](../../CONTRIBUTING.md). Key rules:
 - BACKLOG.md tick-off for completed tasks
 
 ## Project-specific
-- Webview UI is **vanilla HTML/JS** — no framework.
+- Webview UI is **React** (functional components + hooks, built with Vite). No class components. No Angular.
 - Generated files (`generated-tools.ts`, `generated-executor.ts`) are never edited by hand — run `npm run generate`.
 - Errors must be logged and rethrown — never silently swallowed.
 - `withinTransaction()` must wrap multi-step agent operations (once implemented).
