@@ -6,6 +6,7 @@
   "main": "dist/extension.js",
   "scripts": {
     "build": "tsc --noEmit && tsx build.ts --production",
+    "prestart": "pkill -f ExtensionHostNodeModule.node || true",
     "start": "tsx build.ts && extensions-cli run",
     "typecheck": "tsc --noEmit",
     "generate": "node --import=tsx/esm scripts/generate-tools.ts",

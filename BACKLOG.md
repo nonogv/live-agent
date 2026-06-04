@@ -49,6 +49,9 @@ Ship when alpha is stable and all v1 items are done.
 - [ ] **GitHub Actions CI** — workflow on every PR and push to `main`: install deps → typecheck → lint → test; block merge if any step fails
 - [ ] Update `CONTRIBUTING.md` iteration checklist to mention running `npm run lint` and `npm run format:check`
 
+### Chat UX
+- [ ] Markdown rendering in agent messages (bold, code blocks, lists)
+
 ### Conversation persistence
 - [ ] Add `saveHistory()` / `loadHistory()` to `Storage` class — cap at ~50 messages
 - [ ] Load history from storage on server start, save after each completed turn

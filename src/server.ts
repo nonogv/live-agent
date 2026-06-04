@@ -173,54 +173,64 @@ async function handleChat(
   history.push({ role: "user", content: userText });
   ws.send(JSON.stringify({ type: "stream_start" }));
 
-  let assistantContent = "";
-
   try {
-    dbg("[Live Agent] handleChat: creating provider", providerId, model);
     const provider = createProvider(providerId, apiKey);
-
-    dbg("[Live Agent] handleChat: calling getSong");
     const song = getSong();
-
-    dbg("[Live Agent] handleChat: building prompt");
     const liveState = getLiveState(song);
     const systemPrompt = buildSystemPrompt(liveState);
 
-    dbg("[Live Agent] handleChat: starting provider.chat stream");
-    for await (const chunk of provider.chat({
-      model,
-      systemPrompt,
-      messages: [...history],
-      tools: ALL_TOOL_SCHEMAS,
-    })) {
-      if (chunk.type === "text") {
-        assistantContent += chunk.text;
-        ws.send(JSON.stringify({ type: "stream_chunk", text: chunk.text }));
-      } else if (chunk.type === "tool_call") {
-        ws.send(JSON.stringify({ type: "tool_start", name: chunk.name, args: chunk.args }));
+    // Agentic loop: keep calling the provider until it returns a final text
+    // response with no tool calls (max 10 rounds as a safety net).
+    const MAX_ROUNDS = 10;
+    let round = 0;
 
-        const result = await executeGeneratedTool(song, chunk.name, chunk.args)
-          .catch(() => handleToolCall(song, chunk.name, chunk.args));
+    while (round < MAX_ROUNDS) {
+      round++;
+      let assistantContent = "";
+      let hadToolCall = false;
 
-        ws.send(JSON.stringify({ type: "tool_result", name: chunk.name, result }));
+      dbg(`[Live Agent] round ${round} — provider=${providerId} model=${model}`);
+      for await (const chunk of provider.chat({
+        model,
+        systemPrompt,
+        messages: [...history],
+        tools: ALL_TOOL_SCHEMAS,
+      })) {
+        if (chunk.type === "text") {
+          assistantContent += chunk.text;
+          ws.send(JSON.stringify({ type: "stream_chunk", text: chunk.text }));
+        } else if (chunk.type === "tool_call") {
+          hadToolCall = true;
+          ws.send(JSON.stringify({ type: "tool_start", name: chunk.name, args: chunk.args }));
 
-        history.push({
-          role: "assistant",
-          content: assistantContent,
-          toolCall: chunk,
-        });
-        history.push({
-          role: "tool",
-          toolCallId: chunk.id,
-          content: JSON.stringify(result),
-        });
+          const result = await executeGeneratedTool(song, chunk.name, chunk.args)
+            .catch(() => handleToolCall(song, chunk.name, chunk.args));
 
-        assistantContent = "";
+          ws.send(JSON.stringify({ type: "tool_result", name: chunk.name, result }));
+
+          history.push({
+            role: "assistant",
+            content: assistantContent,
+            toolCall: chunk,
+          });
+          history.push({
+            role: "tool",
+            toolCallId: chunk.id,
+            content: JSON.stringify(result),
+          });
+
+          assistantContent = "";
+        }
       }
-    }
 
-    if (assistantContent) {
-      history.push({ role: "assistant", content: assistantContent });
+      if (!hadToolCall) {
+        // Final response — push and stop looping
+        if (assistantContent) {
+          history.push({ role: "assistant", content: assistantContent });
+        }
+        break;
+      }
+      // Tool calls were made; loop to get the model's follow-up response
     }
 
     ws.send(JSON.stringify({ type: "stream_end" }));
@@ -282,8 +292,8 @@ async function handleDebug(
 
   // File write probe
   try {
-    fs.writeFileSync(`${process.cwd()}/debug-probe.txt`, `ok ${Date.now()}\n`);
-    emit(`fs.writeFileSync: OK  (${process.cwd()}/debug-probe.txt)`);
+    fs.writeFileSync("/tmp/live-agent-probe.txt", `ok ${Date.now()}\n`);
+    emit(`fs.writeFileSync: OK`);
   } catch (e) {
     emit(`fs.writeFileSync: FAIL – ${e}`);
   }

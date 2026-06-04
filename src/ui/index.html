@@ -58,11 +58,14 @@
       border-radius: var(--radius); padding: 3px 6px; font-size: 12px; cursor: pointer;
     }
     #model-bar select:focus { outline: 1px solid var(--accent); }
-    #clear-btn {
-      margin-left: auto; background: none; border: none; color: var(--text-dim);
+    #model-bar button {
+      background: none; border: none; color: var(--text-dim);
       cursor: pointer; font-size: 11px; padding: 3px 6px; border-radius: var(--radius);
+      transition: color 0.15s, background 0.15s;
     }
-    #clear-btn:hover { color: var(--text); background: var(--surface2); }
+    #model-bar button:hover { color: var(--text); background: var(--surface2); }
+    #model-bar button.active { color: var(--accent); }
+    #clear-btn { margin-left: auto; }
 
     /* ── Panels ─────────────────────────────────────────────────────── */
     .panel { flex: 1; display: none; flex-direction: column; overflow: hidden; }
@@ -179,7 +182,8 @@
         <option value="gemini">Google Gemini</option>
       </select>
       <select id="model-select"></select>
-      <button id="debug-btn" onclick="runDebug()" title="Run diagnostics" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px 8px;border-radius:var(--radius);font-size:12px;">Debug</button>
+      <button id="tools-btn" onclick="toggleDebugMode()" title="Show tool calls in chat">Tools</button>
+      <button id="diagnose-btn" onclick="runDiagnose()" title="Run environment diagnostics">Diagnose</button>
       <button id="clear-btn" onclick="clearHistory()" title="Clear conversation">Clear</button>
     </div>
 
@@ -280,6 +284,7 @@
     let currentProvider = "openai";
     let isStreaming = false;
     let currentAgentMsg = null;
+    let debugMode = false;
 
     function populateModelSelect(selectEl, provider, selectedModel) {
       selectEl.innerHTML = "";
@@ -354,11 +359,6 @@
           case "history_cleared": onHistoryCleared(); break;
           case "settings":        onSettings(msg); break;
           case "settings_saved":  document.getElementById("save-feedback").textContent = "Saved ✓"; setTimeout(() => document.getElementById("save-feedback").textContent = "", 2500); break;
-          case "debug_result":
-            if (window.__debugEl) {
-              window.__debugEl.textContent = "🔍 Diagnostics:\n" + msg.lines.join("\n");
-            }
-            break;
         }
       });
 
@@ -421,19 +421,17 @@
       liveAgent.send({ type: "clear_history" });
     }
 
-    function runDebug() {
+    function toggleDebugMode() {
+      debugMode = !debugMode;
+      document.getElementById("tools-btn").classList.toggle("active", debugMode);
+    }
+
+    function runDiagnose() {
       const provider = document.getElementById("provider-select").value;
       const model    = document.getElementById("model-select").value;
-      const msgs = document.getElementById("messages");
       hideEmptyState();
-      const el = document.createElement("div");
-      el.style.cssText = "padding:10px 14px;font-family:monospace;font-size:11px;color:#8f8;background:#1a2a1a;white-space:pre-wrap;border-bottom:1px solid #3a3a3a;";
-      el.textContent = "⏳ Running diagnostics…";
-      msgs.appendChild(el);
-      msgs.scrollTop = msgs.scrollHeight;
+      setStreaming(true);
       liveAgent.send({ type: "debug", provider, model });
-      // stash element for update when result arrives
-      window.__debugEl = el;
     }
 
     function onHistoryCleared() {
@@ -486,13 +484,10 @@
     }
 
     function onToolStart(name, args) {
+      if (!debugMode) return;
       const div = addMsg("tool", "");
       div.querySelector(".body").innerHTML =
         `<span class="tool-name">⚙ ${name}</span><div class="tool-args">${JSON.stringify(args, null, 2)}</div>`;
-    }
-
-    function onToolResult(name, result) {
-      // Quietly update — tool result is summarised by the assistant text
     }
 
     function onError(message) {
