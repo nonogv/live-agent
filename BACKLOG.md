@@ -1,14 +1,12 @@
 # Live Agent — Backlog
 
-Status: `0.1.0-alpha` — working end-to-end, private, not yet released.
+Status: `0.2.0-alpha.1` — React UI, full SDK coverage, conversation persistence, confirmation + autopilot all landed.
 
 ---
 
-## Now — Alpha testing & bug fixes
+## Now — Alpha testing & integration
 
-~~First contact with the real extension host. Goal: make "Create a MIDI track named Bass" work end to end.~~
-
-Core loop validated ✅ — multi-step tool use, MIDI note generation, and device insertion all confirmed working in a real session (2026-06-05).
+Core loop validated ✅ — multi-step tool use, MIDI note generation, device insertion, parameter tweaking all confirmed working in a real session (2026-06-05).
 
 - [x] Install Live 12.4.5 beta and load the extension in developer mode
 - [x] Verify the extension registers in Live without errors
@@ -18,62 +16,69 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, and devic
 - [x] Send "Create a MIDI track named Bass" → verify it executes correctly in Live
 - [x] Send "What tracks do I have?" → verify get_live_state returns correct data
 - [x] Multi-turn conversation with tool chaining (create clip → name it → write MIDI notes → insert device)
+- [x] Chat history persists across webview close/reopen
 - [ ] Send "Delete the Bass track" → verify deletion works and IDs refresh correctly
-- [ ] Send "Set tempo to 140" → verify song.tempo updates in Live
-- [ ] Test with OpenAI and Anthropic keys (validated with OpenAI so far)
-- [ ] Test what happens when the webview is closed and reopened (server stays up?)
-- [ ] Test what happens when Live is closed and reopened (extension re-activates?)
+- [ ] Send "Set tempo to 140" → verify `song_set_tempo` updates in Live
+- [ ] Test with OpenAI key
+- [ ] Test with Anthropic key
+- [ ] Test with Gemini key
+- [ ] Test what happens when Live is closed and reopened (extension re-activates, history reloads?)
 
 ---
 
 ## v1 — Developer release
 
-Ship when alpha is stable and all v1 items are done.
+Ship when alpha testing is complete and all v1 items below are done.
 
-### UI migration to React + Vite
-*Do this before building any new UI features — it's the foundation.*
-- [x] Add Vite + React + TypeScript to the project (`npm create vite ui -- --template react-ts` or equivalent)
-- [x] Rebuild the chat panel as React components (`<MessageList>`, `<MessageBubble>`, `<ChatInput>`, `<ProviderBar>`)
-- [x] Rebuild the settings panel as React components (`<ApiKeyField>`, `<ProviderSelector>`, `<ModelSelector>`)
-- [x] Wire WebSocket connection to React state (custom `useWebSocket` hook)
-- [x] Handle streaming text updates reactively (append to message in state as chunks arrive)
-- [x] Configure `server.ts` to serve the Vite build output instead of `index.html`
-- [x] Remove the old `src/ui/index.html`
+### SDK coverage (ongoing)
+
+- [x] Auto-generate tool schemas and executor from SDK types (`npm run generate`)
+- [x] All SDK classes covered: Song, Track, MidiTrack, AudioTrack, ClipSlot, Clip, MidiClip, AudioClip, Scene, CuePoint, Device, DeviceParameter, Simpler, RackDevice, Chain, TakeLane
+- [x] `get_live_state` returns full session snapshot: tracks (regular + return), scenes, cue points, mixer (vol/pan/sends), devices with parameters (min/max/default), session + arrangement clips with MIDI notes, take lanes, main track
+- [x] `findDevice` / `findDeviceParameter` search main track and rack chains
+- [x] Enum values in tool schemas resolve to human-readable descriptions
+- [ ] AudioClip properties in live state (`filePath`, `warping`, `warpMode`) — needed for warp editing workflows
+- [ ] Song scale/key in live state (`rootNote`, `scaleName`, `scaleMode`) — needed for intelligent note generation
+- [ ] `Promise<void>` SDK methods not currently awaited in executor — fix generator's void-check to distinguish `void` from `Promise<void>`
+- [ ] `ClipLoopSettings` object undocumented in `audio_track_create_audio_clip` / `clip_slot_create_audio_clip` / `take_lane_create_audio_clip` tool schemas
+- [ ] Scene tempo `-1` not explained in system prompt (means "inherits from Song tempo", not a real value)
+
+### React + Vite UI
+
+- [x] Vite + React + TypeScript setup
+- [x] All components: `ChatPanel`, `MessageList`, `MessageBubble`, `ChatInput`, `ProviderBar`, `SettingsPanel`, `ApiKeyField`, `EmptyState`
+- [x] WebSocket hook with reconnect and streaming state via `useReducer`
+- [x] Autopilot toggle and confirmation card in React UI
+- [x] Server serves `dist/ui/` (Vite build output)
 
 ### Tooling & DX
-*Do alongside or right after the React migration.*
-- [x] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
-- [x] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
-- [x] **Prettier** — add `.prettierrc` (single quotes, 2 spaces, trailing commas); add `format` and `format:check` scripts
-- [x] **ESLint** — add `eslint.config.ts` with `@eslint/js`, `typescript-eslint`; add `lint` and `lint:fix` scripts
-- [x] **Husky + lint-staged** — `pre-commit` hook runs `prettier --check` + `eslint` on staged files only
-- [x] **GitHub Actions CI** — workflow on every PR and push to `main`: install deps → typecheck → lint → test; block merge if any step fails
-- [x] Update `CONTRIBUTING.md` iteration checklist to mention running `npm run lint` and `npm run format:check`
+
+- [x] Prettier, ESLint, Husky + lint-staged, GitHub Actions CI
+- [x] SCSS modules, Vite build pipeline
 
 ### Chat UX
-- [ ] Markdown rendering in agent messages (bold, code blocks, lists)
+
+- [ ] Markdown rendering in agent messages (bold, code blocks, tables)
 
 ### Conversation persistence
-- [ ] Add `saveHistory()` / `loadHistory()` to `Storage` class — cap at ~50 messages
-- [ ] Load history from storage on server start, save after each completed turn
-- [ ] Add "Clear conversation" button in the Settings tab
-- [ ] Show message count or a faint timestamp on older messages
 
-### Confirmation mode
-- [x] Define destructive tool set in `src/agent/safety.ts` (delete track/scene/clip, etc.)
-- [x] Add `confirm_request` / `confirm_response` WebSocket message types
-- [x] In `server.ts`: before executing a destructive tool, pause and send `confirm_request`
-- [x] In `index.html`: render inline confirm/cancel buttons in the chat stream
-- [x] Wire cancel response to abort the tool call and inform the LLM
+- [x] `saveHistory()` / `loadHistory()` in `Storage` — capped at 100 messages
+- [x] History loaded on server start, saved after each turn
+- [x] History restored in UI on every new WebSocket connection (close + reopen the panel → chat is back)
+- [x] "Clear" button clears both UI state and persisted history
 
-### Autopilot mode
-- [x] Add safe/autopilot toggle button in the chat bar (default: safe)
-- [x] Pass `autopilot: boolean` with each chat message
-- [x] In `server.ts`: if autopilot, skip confirmation and execute immediately
+### Confirmation mode + Autopilot
 
-### Checkpoint system (via withinTransaction)
-- [ ] Wrap all tool calls within a single agent turn in `withinTransaction()` in `server.ts`
-- [ ] Handle the async edge cases (withinTransaction callback must be synchronous — verify approach)
+- [x] `DESTRUCTIVE_TOOLS` set in `src/agent/safety.ts`
+- [x] `confirm_request` / `confirm_response` WebSocket protocol
+- [x] Server pauses before destructive tools and awaits user response
+- [x] Confirmation card rendered inline in the chat (React)
+- [x] Autopilot toggle in the toolbar — skips confirmations when on
+
+### Checkpoint system
+
+- [ ] Wrap all tool calls in a single agent turn in `withinTransaction()` in `server.ts`
+- [ ] Handle the async edge case (callback must be synchronous — verify approach)
 - [ ] After each turn, show a subtle "Revert with ⌘Z" note in the chat
 - [ ] Document the limitation: one undo step per turn, not full history
 
@@ -82,10 +87,10 @@ Ship when alpha is stable and all v1 items are done.
 ## v2 — Power features
 
 - [ ] Consumer edition — packaged installer, managed auth, zero technical setup
-- [ ] Producer rules — persistent per-session or global agent instructions
+- [ ] Producer rules — persistent per-session or global agent instructions ("always use minor pentatonic", "never delete tracks without asking")
 - [ ] Rich context — @track / @clip / @device mentions in chat to focus the agent
 - [ ] Local model support — Ollama / any OpenAI-compatible local server
-- [ ] SDK auto-sync — CI regeneration (requires Ableton to publish SDK to a public registry)
+- [ ] SDK auto-sync — CI regeneration step (requires Ableton to publish SDK to a public npm registry)
 - [ ] Multi-point checkpoint history — copy `.als` file before each turn, offer restore UI
 
 ---

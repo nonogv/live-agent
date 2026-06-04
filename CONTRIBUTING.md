@@ -114,7 +114,7 @@ Every meaningful change must include:
 - [ ] **Format check** — run `npm run format:check` (or `npm run format` to auto-fix)
 - [ ] **Lint** — run `npm run lint` and fix any errors before committing
 - [ ] **README update** — if the change affects setup, capabilities, or public-facing behavior
-- [ ] **BACKLOG update** — tick completed tasks, add discovered issues
+- [ ] **BACKLOG update** — tick completed tasks, move newly discovered issues to the right milestone, and remove items that are no longer relevant. The backlog is the single source of truth for project status — stale entries are worse than no entries.
 - [ ] **Version bump** — if the change crosses a milestone (patch/minor/major); tag the release
 
 Generated files (`src/agent/generated-tools.ts`, `src/live/generated-executor.ts`) are exempt from manual JSDoc — they are produced by `npm run generate` and should not be edited by hand.
