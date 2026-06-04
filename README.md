@@ -6,14 +6,9 @@ AI-powered assistant built into Ableton Live. Chat with GPT, Claude, or Gemini t
 
 ## What it does
 
-Live Agent is an Ableton Extension that opens a chat panel inside Live. You type instructions in plain language and the agent executes them directly on your session using the Ableton Extensions SDK.
+Live Agent is an Ableton Extension that opens a chat panel inside Live. You type instructions in plain English and the agent executes them directly on your session using the Ableton Extensions SDK.
 
-**Supported actions (MVP):**
-- Create / rename / delete / duplicate tracks
-- Create MIDI clips
-- Set tempo
-- Fire clips and scenes
-- Read session state (tracks, BPM, time signature)
+Tool schemas are **auto-generated** from the SDK type definitions — every method and setter the SDK exposes becomes a callable tool. This means coverage stays in sync with SDK updates automatically.
 
 **Supported AI providers:**
 | Provider | Models |
@@ -28,45 +23,52 @@ Your API keys are stored locally in Live's extension storage and never leave you
 
 - **Ableton Live 12 Suite** version **12.4.5 beta** or later
 - **Node.js v24.16.0** (LTS) or higher — [download](https://nodejs.org)
-- **Ableton Extensions SDK** — download from [Centercode beta program](https://ableton.github.io/extensions-sdk/)
 - At least one API key from OpenAI, Anthropic, or Google AI Studio
 
 ## Setup
 
-### 1. Install the Ableton Extensions SDK
-
-Join the beta program, download the SDK, and note the path to the SDK folder.
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
 cd live-agent
 npm install
 ```
 
-Then install the Ableton SDK package (path will vary by your download location):
+### 2. Install the Ableton Extensions SDK
+
+Download the SDK package from the [Ableton beta program](https://ableton.github.io/extensions-sdk/), then install it locally:
 
 ```bash
-npm install /path/to/ableton-extensions-sdk/package
+npm install /path/to/extensions-sdk-x.x.x/package
 ```
 
-### 3. Build
+### 3. (Optional) Regenerate tools
+
+The generated tool schemas and executor are already committed. If you update the SDK and want to pick up new API surface:
+
+```bash
+npm run generate
+```
+
+This re-parses the SDK types and rewrites `src/agent/generated-tools.ts` and `src/live/generated-executor.ts`.
+
+### 4. Build
 
 ```bash
 npm run build
 ```
 
-### 4. Load in Live
+### 5. Load in Live
 
 - Open Live 12.4.5 beta
-- Go to **Live → Extensions** in Settings
+- Go to **Live → Preferences → Extensions**
 - Enable **Developer Mode**
 - Point Live to this project folder
-- Run `npm start` — Live will connect to your extension
+- Run `npm start` — Live will connect to your extension and hot-reload on save
 
-### 5. Add your API key
+### 6. Add your API key
 
-- Right-click any track → **Open Live Agent**
+- Right-click any track → **Live Agent**
 - Switch to the **Settings** tab
 - Paste your API key for at least one provider
 - Switch back to **Chat** and start talking
@@ -74,21 +76,26 @@ npm run build
 ## Development
 
 ```bash
-# Watch mode (recompiles on save, Live hot-reloads)
+# Watch mode — recompiles on save, Live hot-reloads the extension
 npm start
 
 # Type-check only
 npm run typecheck
-```
 
-The extension host reloads automatically when files change — no need to restart Live.
+# Regenerate tool schemas from SDK types
+npm run generate
+```
 
 ## Project structure
 
 ```
+scripts/
+└── generate-tools.ts     # Reads SDK types via ts-morph, writes generated-tools + generated-executor
+
 src/
-├── extension.ts          # Entry point — activate(), webview lifecycle, message routing
-├── ableton-live.d.ts     # Type stubs for the SDK (replaced by real types on install)
+├── extension.ts          # Entry point — registers context menu, starts server, opens webview
+├── server.ts             # Local HTTP + WebSocket server for chat streaming
+├── storage.ts            # Persistent API key + settings storage (JSON file in Live's storage dir)
 ├── providers/
 │   ├── index.ts          # ProviderAdapter interface + factory
 │   ├── openai.ts         # OpenAI streaming adapter
@@ -96,21 +103,21 @@ src/
 │   └── gemini.ts         # Google Gemini adapter
 ├── agent/
 │   ├── chat.ts           # System prompt builder
-│   └── tools.ts          # Ableton tool schemas for function calling
+│   ├── tools.ts          # Custom tool schemas (get_live_state)
+│   └── generated-tools.ts  # Auto-generated SDK tool schemas (do not edit)
 ├── live/
-│   └── executor.ts       # Maps tool calls → Ableton SDK calls
+│   ├── executor.ts       # Custom tool handler (get_live_state)
+│   └── generated-executor.ts  # Auto-generated SDK dispatcher (do not edit)
 └── ui/
     └── index.html        # Self-contained chat + settings webview
 ```
 
 ## Roadmap
 
-- [ ] Add notes to MIDI clips
-- [ ] Warp mode control on audio clips
-- [ ] Device/plugin parameter control
-- [ ] Arrangement view actions
 - [ ] Voice input
 - [ ] Multi-turn memory / session persistence
+- [ ] Arrangement view actions
+- [ ] Clip drag/launch from the chat panel
 
 ## License
 
