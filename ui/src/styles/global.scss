@@ -1,0 +1,44 @@
+@use './variables' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #{$bg};
+  --surface: #{$surface};
+  --surface2: #{$surface2};
+  --border: #{$border};
+  --accent: #{$accent};
+  --accent-dim: #{$accent-dim};
+  --text: #{$text};
+  --text-dim: #{$text-dim};
+  --user-bg: #{$user-bg};
+  --agent-bg: #{$agent-bg};
+  --tool-bg: #{$tool-bg};
+  --error-bg: #{$error-bg};
+  --radius: #{$radius};
+  --font: #{$font};
+  --mono: #{$mono};
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+// Streaming cursor animation
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

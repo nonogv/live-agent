@@ -10,20 +10,21 @@
     "start": "tsx build.ts && extensions-cli run",
     "typecheck": "tsc --noEmit",
     "generate": "node --import=tsx/esm scripts/generate-tools.ts",
-    "format": "prettier --write \"src/**/*.{ts,tsx,html,scss}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,html,scss}\"",
-    "lint": "eslint --no-warn-ignored src/**/*.ts",
-    "lint:fix": "eslint --no-warn-ignored src/**/*.ts --fix",
+    "dev:ui": "vite",
+    "format": "prettier --write \"src/**/*.{ts,tsx,html,scss}\" \"ui/src/**/*.{ts,tsx,scss}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,html,scss}\" \"ui/src/**/*.{ts,tsx,scss}\"",
+    "lint": "eslint --no-warn-ignored src/**/*.ts ui/src/**/*.{ts,tsx}",
+    "lint:fix": "eslint --no-warn-ignored src/**/*.ts ui/src/**/*.{ts,tsx} --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx}": [
+    "{src,ui/src}/**/*.{ts,tsx}": [
       "prettier --check",
       "eslint"
     ],
-    "src/**/*.{html,scss}": [
+    "{src,ui/src}/**/*.{html,scss}": [
       "prettier --check"
     ]
   },
@@ -40,23 +41,30 @@
   "license": "MIT",
   "dependencies": {
     "@ableton-extensions/sdk": "file:./vendor/ableton-extensions-sdk-1.0.0-beta.0.tgz",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "ws": "^8.21.0"
   },
   "devDependencies": {
     "@ableton-extensions/cli": "file:./vendor/ableton-extensions-cli-1.0.0-beta.0.tgz",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.15.29",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
-    "esbuild": "^0.25.12",
+    "@vitejs/plugin-react": "^6.0.2",
+    "esbuild": "^0.28.0",
     "eslint": "^10.4.1",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
+    "sass": "^1.100.0",
     "ts-morph": "^28.0.0",
     "tsx": "^4.22.4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.60.1",
+    "vite": "^8.0.16",
     "vitest": "^4.1.8"
   },
   "engines": {
