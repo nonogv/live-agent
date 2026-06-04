@@ -1,5 +1,7 @@
 node_modules/
 dist/
+ui/node_modules/
+dist/ui/
 *.js.map
 *.d.ts.map
 .env

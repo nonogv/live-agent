@@ -32,18 +32,18 @@ Ship when alpha is stable and all v1 items are done.
 
 ### UI migration to React + Vite
 *Do this before building any new UI features — it's the foundation.*
-- [ ] Add Vite + React + TypeScript to the project (`npm create vite ui -- --template react-ts` or equivalent)
-- [ ] Rebuild the chat panel as React components (`<MessageList>`, `<MessageBubble>`, `<ChatInput>`, `<ProviderBar>`)
-- [ ] Rebuild the settings panel as React components (`<ApiKeyField>`, `<ProviderSelector>`, `<ModelSelector>`)
-- [ ] Wire WebSocket connection to React state (custom `useWebSocket` hook)
-- [ ] Handle streaming text updates reactively (append to message in state as chunks arrive)
-- [ ] Configure `server.ts` to serve the Vite build output instead of `index.html`
-- [ ] Remove the old `src/ui/index.html`
+- [x] Add Vite + React + TypeScript to the project (`npm create vite ui -- --template react-ts` or equivalent)
+- [x] Rebuild the chat panel as React components (`<MessageList>`, `<MessageBubble>`, `<ChatInput>`, `<ProviderBar>`)
+- [x] Rebuild the settings panel as React components (`<ApiKeyField>`, `<ProviderSelector>`, `<ModelSelector>`)
+- [x] Wire WebSocket connection to React state (custom `useWebSocket` hook)
+- [x] Handle streaming text updates reactively (append to message in state as chunks arrive)
+- [x] Configure `server.ts` to serve the Vite build output instead of `index.html`
+- [x] Remove the old `src/ui/index.html`
 
 ### Tooling & DX
 *Do alongside or right after the React migration.*
-- [ ] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
-- [ ] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
+- [x] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
+- [x] **SCSS** — configure Vite to support `.scss` / `.module.scss`; replace any inline styles in React components with CSS modules
 - [x] **Prettier** — add `.prettierrc` (single quotes, 2 spaces, trailing commas); add `format` and `format:check` scripts
 - [x] **ESLint** — add `eslint.config.ts` with `@eslint/js`, `typescript-eslint`; add `lint` and `lint:fix` scripts
 - [x] **Husky + lint-staged** — `pre-commit` hook runs `prettier --check` + `eslint` on staged files only

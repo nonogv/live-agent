@@ -42,11 +42,33 @@ export async function startServer(
   const history = storage.loadHistory();
   let autopilot = false;
 
+  const uiDir = path.join(__dirname, '..', 'ui');
+
+  const MIME: Record<string, string> = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.ico': 'image/x-icon',
+    '.woff2': 'font/woff2',
+    '.woff': 'font/woff',
+  };
+
   const httpServer = http.createServer((req, res) => {
-    if (req.url === '/' || req.url === '/index.html') {
-      const htmlPath = path.join(__dirname, 'ui', 'index.html');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      fs.createReadStream(htmlPath).pipe(res);
+    const rawUrl = req.url ?? '/';
+    // Strip query string for file resolution
+    const urlPath = rawUrl.split('?')[0];
+
+    // Serve index.html for root and any path that doesn't look like a static asset
+    const ext = path.extname(urlPath);
+    const filePath =
+      ext && urlPath !== '/' ? path.join(uiDir, urlPath) : path.join(uiDir, 'index.html');
+
+    if (fs.existsSync(filePath)) {
+      const mime = MIME[path.extname(filePath)] ?? 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': mime });
+      fs.createReadStream(filePath).pipe(res);
     } else {
       res.writeHead(404);
       res.end('Not found');

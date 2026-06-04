@@ -1,0 +1,86 @@
+@use '../styles/variables' as *;
+
+.panel {
+  padding: 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $text-dim;
+  margin-bottom: 12px;
+}
+
+.note {
+  font-size: 11px;
+  color: $text-dim;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.extLink {
+  color: $accent;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  color: $text-dim;
+  margin-bottom: 5px;
+}
+
+.select {
+  width: 100%;
+  background: $surface2;
+  border: 1px solid $border;
+  color: $text;
+  border-radius: $radius;
+  padding: 7px 10px;
+  font-size: 13px;
+
+  &:focus {
+    outline: 1px solid $accent;
+  }
+}
+
+.saveBtn {
+  width: 100%;
+  background: $accent;
+  border: none;
+  color: white;
+  border-radius: $radius;
+  padding: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: $accent-hover;
+  }
+}
+
+.feedback {
+  text-align: center;
+  font-size: 12px;
+  color: #6abf6a;
+  margin-top: 8px;
+  min-height: 18px;
+}

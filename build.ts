@@ -1,35 +1,35 @@
-import * as esbuild from "esbuild";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import * as esbuild from 'esbuild';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { execSync } from 'node:child_process';
 
-const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
-const production = process.argv.includes("--production");
+const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+const production = process.argv.includes('--production');
 const outfile: string = manifest.entry;
 const outdir = path.dirname(outfile);
 
-// Copy the static UI folder into the dist directory
-const uiSrc = "src/ui";
-const uiDest = path.join(outdir, "ui");
-if (fs.existsSync(uiSrc)) {
-  fs.cpSync(uiSrc, uiDest, { recursive: true, force: true });
-}
+// Ensure the output directory exists
+fs.mkdirSync(outdir, { recursive: true });
 
 await esbuild.build({
-  entryPoints: ["src/extension.ts"],
+  entryPoints: ['src/extension.ts'],
   outfile,
   bundle: true,
-  format: "cjs",
-  platform: "node",
+  format: 'cjs',
+  platform: 'node',
   sourcesContent: false,
-  logLevel: "info",
+  logLevel: 'info',
   minify: production,
   sourcemap: !production,
   // Externalize the SDK — provided by the Extension Host at runtime
-  external: ["@ableton-extensions/sdk"],
+  external: ['@ableton-extensions/sdk'],
   // esbuild outputs CJS so import.meta.url is unavailable; inject a
   // synthetic value so fileURLToPath() resolves __dirname correctly.
   define: {
-    "global": "globalThis",
-    "import.meta.url": JSON.stringify(`file://${path.resolve(outfile)}`),
+    global: 'globalThis',
+    'import.meta.url': JSON.stringify(`file://${path.resolve(outfile)}`),
   },
 });
+
+// Build the React UI with Vite
+execSync('npx vite build', { cwd: path.resolve('ui'), stdio: 'inherit' });
