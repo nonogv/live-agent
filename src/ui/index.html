@@ -13,7 +13,7 @@
       --surface:   #242424;
       --surface2:  #2e2e2e;
       --border:    #3a3a3a;
-      --accent:    #e05c1a;  /* Ableton orange */
+      --accent:    #48e01a;  /* Ableton orange */
       --accent-dim:#9e3d0f;
       --text:      #e8e8e8;
       --text-dim:  #888;
@@ -179,6 +179,7 @@
         <option value="gemini">Google Gemini</option>
       </select>
       <select id="model-select"></select>
+      <button id="debug-btn" onclick="runDebug()" title="Run diagnostics" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px 8px;border-radius:var(--radius);font-size:12px;">Debug</button>
       <button id="clear-btn" onclick="clearHistory()" title="Clear conversation">Clear</button>
     </div>
 
@@ -353,6 +354,11 @@
           case "history_cleared": onHistoryCleared(); break;
           case "settings":        onSettings(msg); break;
           case "settings_saved":  document.getElementById("save-feedback").textContent = "Saved ✓"; setTimeout(() => document.getElementById("save-feedback").textContent = "", 2500); break;
+          case "debug_result":
+            if (window.__debugEl) {
+              window.__debugEl.textContent = "🔍 Diagnostics:\n" + msg.lines.join("\n");
+            }
+            break;
         }
       });
 
@@ -413,6 +419,21 @@
 
     function clearHistory() {
       liveAgent.send({ type: "clear_history" });
+    }
+
+    function runDebug() {
+      const provider = document.getElementById("provider-select").value;
+      const model    = document.getElementById("model-select").value;
+      const msgs = document.getElementById("messages");
+      hideEmptyState();
+      const el = document.createElement("div");
+      el.style.cssText = "padding:10px 14px;font-family:monospace;font-size:11px;color:#8f8;background:#1a2a1a;white-space:pre-wrap;border-bottom:1px solid #3a3a3a;";
+      el.textContent = "⏳ Running diagnostics…";
+      msgs.appendChild(el);
+      msgs.scrollTop = msgs.scrollHeight;
+      liveAgent.send({ type: "debug", provider, model });
+      // stash element for update when result arrives
+      window.__debugEl = el;
     }
 
     function onHistoryCleared() {

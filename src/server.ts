@@ -17,6 +17,14 @@ const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const LOG_FILE = "/tmp/live-agent-debug.log";
+
+function dbg(...args: unknown[]): void {
+  const line = `[${new Date().toISOString()}] ${args.map(String).join(" ")}\n`;
+  try { fs.appendFileSync(LOG_FILE, line); } catch (_) {}
+  console.log(...args);
+}
+
 export interface LiveAgentServer {
   port: number;
   close(): void;
@@ -77,7 +85,8 @@ type WebViewMessage =
   | { type: "save_settings"; keys: Record<string, string>; defaultProvider: string; defaultModel: string }
   | { type: "clear_key"; provider: string }
   | { type: "open_url"; url: string }
-  | { type: "console_log"; level: string; message: string };
+  | { type: "console_log"; level: string; message: string }
+  | { type: "debug"; provider: string; model: string };
 
 async function handleMessage(
   ws: WebSocket,
@@ -132,7 +141,11 @@ async function handleMessage(
     }
 
     case "console_log":
-      console.log(`[WebView:${msg.level}] ${msg.message}`);
+      dbg(`[WebView:${msg.level}] ${msg.message}`);
+      break;
+
+    case "debug":
+      await handleDebug(ws, msg.provider, msg.model, storage);
       break;
   }
 }
@@ -206,9 +219,52 @@ async function handleChat(
 
     ws.send(JSON.stringify({ type: "stream_end" }));
   } catch (err) {
-    console.error("[Live Agent] Chat error:", err);
+    const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    dbg("[Live Agent] Chat error:", stack);
     const message = err instanceof Error ? err.message : String(err);
     ws.send(JSON.stringify({ type: "error", message }));
     history.pop();
   }
+}
+
+async function handleDebug(
+  ws: WebSocket,
+  providerId: string,
+  model: string,
+  storage: Storage
+): Promise<void> {
+  const lines: string[] = [];
+  const add = (s: string) => { lines.push(s); dbg("[debug]", s); };
+
+  add(`Node version: ${process.version}`);
+  add(`Platform: ${process.platform}`);
+
+  // URL test
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const u = new (URL as any)("https://example.com/path?q=1");
+    add(`URL: OK (host=${u.host})`);
+  } catch (e) {
+    add(`URL: FAIL – ${e}`);
+  }
+
+  // fetch test
+  add(`fetch: ${typeof fetch}`);
+  add(`globalThis.fetch: ${typeof globalThis.fetch}`);
+
+  // Provider init test (does not make a network request)
+  const apiKey = storage.getApiKey(providerId);
+  add(`API key set: ${!!apiKey} (provider=${providerId})`);
+  if (apiKey) {
+    try {
+      createProvider(providerId, apiKey);
+      add(`createProvider: OK`);
+    } catch (e) {
+      add(`createProvider: FAIL – ${e}`);
+    }
+  }
+
+  add(`Log file: ${LOG_FILE}`);
+
+  ws.send(JSON.stringify({ type: "debug_result", lines }));
 }
