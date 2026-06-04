@@ -5,7 +5,7 @@ import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProviders } from './hooks/useProviders';
-import type { ChatMessage, ClientMessage, ServerMessage, SettingsPayload } from './types';
+import type { ChatMessage, ServerMessage, SettingsPayload } from './types';
 
 // ── Chat state via useReducer ────────────────────────────────────────────────
 
@@ -140,7 +140,6 @@ export function App() {
           break;
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [debugMode],
   );
 
