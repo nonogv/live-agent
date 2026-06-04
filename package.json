@@ -1,6 +1,6 @@
 {
   "name": "live-agent",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "description": "AI agent for Ableton Live — chat with GPT, Claude, or Gemini to control your session",
   "type": "module",
   "main": "dist/extension.js",
