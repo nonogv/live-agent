@@ -1,4 +1,4 @@
-import { MidiTrack, type Song } from '@ableton-extensions/sdk';
+import { MidiClip, MidiTrack, type Song } from '@ableton-extensions/sdk';
 import type { LiveState } from '../agent/chat.js';
 
 /**
@@ -23,6 +23,27 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
           ),
         })),
       ),
+      sessionClips: t.clipSlots
+        .map((slot, idx) => ({ slot, idx }))
+        .filter(({ slot }) => slot.clip !== null)
+        .map(({ slot, idx }) => {
+          const clip = slot.clip!;
+          const isMidi = clip instanceof MidiClip;
+          return {
+            id: clip.handle.id.toString(),
+            name: clip.name,
+            slotIndex: idx,
+            duration: clip.duration,
+            notes: isMidi
+              ? clip.notes.map((n) => ({
+                  pitch: n.pitch,
+                  startTime: n.startTime,
+                  duration: n.duration,
+                  velocity: n.velocity ?? 100,
+                }))
+              : undefined,
+          };
+        }),
     })),
   );
   return { tempo: song.tempo, trackCount: song.tracks.length, tracks };

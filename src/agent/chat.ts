@@ -6,10 +6,31 @@ export interface DeviceInfo {
   parameters: Array<{ id: string; name: string; value: number }>;
 }
 
+export interface NoteInfo {
+  pitch: number;
+  startTime: number;
+  duration: number;
+  velocity: number;
+}
+
+export interface ClipInfo {
+  id: string;
+  name: string;
+  slotIndex: number;
+  duration: number;
+  notes?: NoteInfo[]; // only for MIDI clips
+}
+
 export interface LiveState {
   tempo: number;
   trackCount: number;
-  tracks: Array<{ id: string; name: string; type: string; devices: DeviceInfo[] }>;
+  tracks: Array<{
+    id: string;
+    name: string;
+    type: string;
+    devices: DeviceInfo[];
+    sessionClips: ClipInfo[];
+  }>;
 }
 
 /**
@@ -68,7 +89,24 @@ export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[
             })
             .join('\n')
         : '';
-      return `  ${i + 1}. [${t.type}] "${t.name}" (id: ${t.id})${devStr}`;
+
+      const clipStr = t.sessionClips.length
+        ? '\n' +
+          t.sessionClips
+            .map((c) => {
+              const noteStr =
+                c.notes && c.notes.length > 0
+                  ? '\n        Notes: ' +
+                    c.notes
+                      .map((n) => `p:${n.pitch} t:${n.startTime} d:${n.duration} v:${n.velocity}`)
+                      .join(', ')
+                  : '';
+              return `      Clip[${c.slotIndex}]: "${c.name}" (id:${c.id}) — ${c.duration} beats${noteStr}`;
+            })
+            .join('\n')
+        : '';
+
+      return `  ${i + 1}. [${t.type}] "${t.name}" (id: ${t.id})${devStr}${clipStr}`;
     })
     .join('\n');
 

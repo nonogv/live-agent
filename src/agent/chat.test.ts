@@ -41,9 +41,9 @@ describe('buildSystemPrompt', () => {
       tempo: 120,
       trackCount: 3,
       tracks: [
-        { id: '1', name: 'Kick', type: 'audio', devices: [] },
-        { id: '2', name: 'Bass', type: 'midi', devices: [] },
-        { id: '3', name: 'Chords', type: 'midi', devices: [] },
+        { id: '1', name: 'Kick', type: 'audio', devices: [], sessionClips: [] },
+        { id: '2', name: 'Bass', type: 'midi', devices: [], sessionClips: [] },
+        { id: '3', name: 'Chords', type: 'midi', devices: [], sessionClips: [] },
       ],
     };
     expect(buildSystemPrompt(state, minimalTools)).toContain('Tracks (3)');
@@ -54,8 +54,8 @@ describe('buildSystemPrompt', () => {
       tempo: 120,
       trackCount: 2,
       tracks: [
-        { id: '42', name: 'Bass', type: 'midi', devices: [] },
-        { id: '99', name: 'Room', type: 'audio', devices: [] },
+        { id: '42', name: 'Bass', type: 'midi', devices: [], sessionClips: [] },
+        { id: '99', name: 'Room', type: 'audio', devices: [], sessionClips: [] },
       ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
@@ -89,6 +89,7 @@ describe('buildSystemPrompt', () => {
           id: '1',
           name: 'Bass',
           type: 'midi',
+          sessionClips: [],
           devices: [
             {
               id: '10',
@@ -103,5 +104,33 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Analog');
     expect(prompt).toContain('Volume');
     expect(prompt).toContain('id:20');
+  });
+
+  it('lists session clip names and MIDI notes', () => {
+    const state: LiveState = {
+      tempo: 120,
+      trackCount: 1,
+      tracks: [
+        {
+          id: '1',
+          name: 'Bass',
+          type: 'midi',
+          devices: [],
+          sessionClips: [
+            {
+              id: '55',
+              name: 'Bass Loop',
+              slotIndex: 0,
+              duration: 16,
+              notes: [{ pitch: 40, startTime: 0, duration: 0.25, velocity: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('Bass Loop');
+    expect(prompt).toContain('id:55');
+    expect(prompt).toContain('p:40');
   });
 });
