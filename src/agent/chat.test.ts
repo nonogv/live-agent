@@ -18,9 +18,9 @@ describe('buildSystemPrompt', () => {
       tempo: 120,
       trackCount: 3,
       tracks: [
-        { id: '1', name: 'Kick', type: 'audio' },
-        { id: '2', name: 'Bass', type: 'midi' },
-        { id: '3', name: 'Chords', type: 'midi' },
+        { id: '1', name: 'Kick', type: 'audio', devices: [] },
+        { id: '2', name: 'Bass', type: 'midi', devices: [] },
+        { id: '3', name: 'Chords', type: 'midi', devices: [] },
       ],
     };
     expect(buildSystemPrompt(state)).toContain('Tracks (3)');
@@ -31,8 +31,8 @@ describe('buildSystemPrompt', () => {
       tempo: 120,
       trackCount: 2,
       tracks: [
-        { id: '42', name: 'Bass', type: 'midi' },
-        { id: '99', name: 'Room', type: 'audio' },
+        { id: '42', name: 'Bass', type: 'midi', devices: [] },
+        { id: '99', name: 'Room', type: 'audio', devices: [] },
       ],
     };
     const prompt = buildSystemPrompt(state);
