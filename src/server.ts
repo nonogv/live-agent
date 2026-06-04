@@ -170,17 +170,23 @@ async function handleChat(
     return;
   }
 
-  const provider = createProvider(providerId, apiKey);
-  const song = getSong();
-  const liveState = getLiveState(song);
-  const systemPrompt = buildSystemPrompt(liveState);
-
   history.push({ role: "user", content: userText });
   ws.send(JSON.stringify({ type: "stream_start" }));
 
   let assistantContent = "";
 
   try {
+    dbg("[Live Agent] handleChat: creating provider", providerId, model);
+    const provider = createProvider(providerId, apiKey);
+
+    dbg("[Live Agent] handleChat: calling getSong");
+    const song = getSong();
+
+    dbg("[Live Agent] handleChat: building prompt");
+    const liveState = getLiveState(song);
+    const systemPrompt = buildSystemPrompt(liveState);
+
+    dbg("[Live Agent] handleChat: starting provider.chat stream");
     for await (const chunk of provider.chat({
       model,
       systemPrompt,
