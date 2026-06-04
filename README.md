@@ -13,9 +13,9 @@ Tool schemas are **auto-generated** from the SDK type definitions — every meth
 **Supported AI providers:**
 | Provider | Models |
 |---|---|
-| OpenAI | GPT-4o, GPT-4o mini, GPT-4.1 mini, o3-mini |
-| Anthropic | Claude Sonnet 4.5, Claude Opus 4.5, Claude Haiku 3.5 |
-| Google | Gemini 2.5 Pro, Gemini 2.5 Flash |
+| OpenAI | GPT-5.5, GPT-5.5 Pro, GPT-5.4, GPT-5.4 mini, o3, o3 Pro |
+| Anthropic | Claude Opus 4.8, Claude Sonnet 4.6, Claude Haiku 4.5 |
+| Google | Gemini 3.5 Flash, Gemini 3.1 Pro (preview), Gemini 3.1 Flash-Lite |
 
 Your API keys are stored locally in Live's extension storage and never leave your computer.
 
