@@ -1,28 +1,28 @@
 # Live Agent — Backlog
 
-Status: `0.1.0-alpha` — untested, private, not released.
+Status: `0.1.0-alpha` — working end-to-end, private, not yet released.
 
 ---
 
 ## Now — Alpha testing & bug fixes
 
-First contact with the real extension host. Goal: make "Create a MIDI track named Bass" work end to end.
+~~First contact with the real extension host. Goal: make "Create a MIDI track named Bass" work end to end.~~
 
-- [ ] Install Live 12.4.5 beta and load the extension in developer mode
-- [ ] Verify the extension registers in Live without errors (check Live's extension log)
-- [ ] Verify the HTTP + WebSocket server starts on a free port
-- [ ] Open the chat via right-click context menu → verify the webview loads
-- [ ] Add a Gemini API key in Settings → verify it saves and persists across restarts
-- [ ] Send a basic message ("hello") → verify AI response streams in
-- [ ] Send "Create a MIDI track named Bass" → verify it executes correctly in Live
-- [ ] Send "What tracks do I have?" → verify get_live_state returns correct data
-- [ ] Send "Delete the Bass track" → verify deletion works and handle IDs refresh correctly
+Core loop validated ✅ — multi-step tool use, MIDI note generation, and device insertion all confirmed working in a real session (2026-06-05).
+
+- [x] Install Live 12.4.5 beta and load the extension in developer mode
+- [x] Verify the extension registers in Live without errors
+- [x] Verify the HTTP + WebSocket server starts on a free port
+- [x] Open the chat via right-click context menu → verify the webview loads
+- [x] Send a basic message ("hello") → verify AI response streams in
+- [x] Send "Create a MIDI track named Bass" → verify it executes correctly in Live
+- [x] Send "What tracks do I have?" → verify get_live_state returns correct data
+- [x] Multi-turn conversation with tool chaining (create clip → name it → write MIDI notes → insert device)
+- [ ] Send "Delete the Bass track" → verify deletion works and IDs refresh correctly
 - [ ] Send "Set tempo to 140" → verify song.tempo updates in Live
-- [ ] Test with OpenAI and Anthropic keys as well
-- [ ] Test session with multiple back-and-forth turns — check for memory/history issues
+- [ ] Test with OpenAI and Anthropic keys (validated with OpenAI so far)
 - [ ] Test what happens when the webview is closed and reopened (server stays up?)
 - [ ] Test what happens when Live is closed and reopened (extension re-activates?)
-- [ ] Identify and fix all crashes, type errors, and unexpected behaviors found above
 
 ---
 
