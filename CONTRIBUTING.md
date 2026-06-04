@@ -90,6 +90,21 @@ export function buildSystemPrompt(state: LiveState): string {
 
 ---
 
+## Versioning
+
+We follow [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH[-prerelease]`.
+
+- **PATCH** — bug fixes, no API or behavior change (`0.1.1`)
+- **MINOR** — new features, backwards-compatible (`0.2.0`)
+- **MAJOR** — breaking changes or a significant milestone release (`1.0.0`)
+- **Pre-release suffixes** — `alpha` → `beta` → `rc` before stable (`1.0.0-alpha.1`, `1.0.0-beta.2`, `1.0.0-rc.1`)
+
+Current track: `0.x` is the developer preview. `1.0.0` is the v1 developer release (see `BACKLOG.md`).
+
+Bump the version in `package.json` as part of the commit that represents the milestone — not in a separate commit. Tag the release in git: `git tag v0.2.0`.
+
+---
+
 ## Iteration checklist
 
 Every meaningful change must include:
@@ -98,6 +113,7 @@ Every meaningful change must include:
 - [ ] **JSDoc** — exported symbols are documented
 - [ ] **README update** — if the change affects setup, capabilities, or public-facing behavior
 - [ ] **BACKLOG update** — tick completed tasks, add discovered issues
+- [ ] **Version bump** — if the change crosses a milestone (patch/minor/major); tag the release
 
 Generated files (`src/agent/generated-tools.ts`, `src/live/generated-executor.ts`) are exempt from manual JSDoc — they are produced by `npm run generate` and should not be edited by hand.
 
