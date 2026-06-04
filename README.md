@@ -124,23 +124,25 @@ src/
 ## Roadmap
 
 > **Note:** This roadmap is provisional. The project is in private development — strategy and priorities will be revisited before any public release.
+>
+> Current state: `0.1.0-alpha` — untested, developer-only, not publicly released.
 
-**Near-term**
+**v1 — Developer release**
 - [ ] Confirmation mode — ask before destructive actions (delete track, clear clip)
 - [ ] Autopilot mode — suppress confirmations, chain multiple actions without interruption
 - [ ] Checkpoint system — snapshot Live Set before agent operations, restore any point
 - [ ] Conversation persistence — save and restore history across Live restarts
 
-**Medium-term**
+**v2 — Power features**
+- [ ] Consumer edition — packaged installer, managed auth, zero technical setup for non-developer musicians
 - [ ] Producer rules — persistent per-session or global agent instructions ("always 4/4", "prefix track names with section")
 - [ ] Rich context — @track / @clip / @device targeting in the chat
 - [ ] Local model support — Ollama and other local LLMs, no API key required
-- [ ] SDK auto-sync — CI step to regenerate tool schemas on SDK updates
+- [ ] SDK auto-sync — CI step to regenerate tool schemas on each SDK release (requires Ableton to publish the SDK to a public registry)
 
-**Long-term**
+**v3 — Platform**
 - [ ] Cloud sync — conversation history and rules across machines
 - [ ] Collaborative sessions — shared agent context for remote co-production
-- [ ] Consumer edition — packaged installer, managed auth, zero technical setup for non-developer musicians
 
 ## License
 
