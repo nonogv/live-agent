@@ -49,3 +49,39 @@
 .clearBtn {
   margin-left: auto;
 }
+
+// Three-way segmented control (Review / Guard / Auto)
+.segmented {
+  display: flex;
+  border: 1px solid $border;
+  border-radius: $radius;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.seg {
+  background: none;
+  border: none;
+  border-left: 1px solid $border;
+  color: $text-dim;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 7px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+
+  &:first-child {
+    border-left: none;
+  }
+
+  &:hover {
+    color: $text;
+    background: $surface2;
+  }
+
+  &.active {
+    color: $accent;
+    background: $surface2;
+  }
+}

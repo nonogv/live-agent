@@ -16,6 +16,8 @@ import { DESTRUCTIVE_TOOLS } from './agent/safety.js';
 
 const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
+type ConfirmMode = 'review' | 'guard' | 'off';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const LOG_FILE = '/tmp/live-agent-debug.log';
@@ -40,7 +42,7 @@ export async function startServer(
   storage: Storage,
 ): Promise<LiveAgentServer> {
   const history = storage.loadHistory();
-  let autopilot = false;
+  let confirmMode: ConfirmMode = 'guard';
 
   const uiDir = path.join(__dirname, 'ui');
 
@@ -93,8 +95,8 @@ export async function startServer(
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
-        handleMessage(ws, msg, getSong, storage, history, autopilot, (val) => {
-          autopilot = val;
+        handleMessage(ws, msg, getSong, storage, history, confirmMode, (val) => {
+          confirmMode = val;
         }).catch((err) => {
           ws.send(JSON.stringify({ type: 'error', message: String(err) }));
         });
@@ -134,7 +136,7 @@ type WebViewMessage =
   | { type: 'console_log'; level: string; message: string }
   | { type: 'debug'; provider: string; model: string }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
-  | { type: 'set_autopilot'; enabled: boolean };
+  | { type: 'set_confirm_mode'; mode: ConfirmMode };
 
 async function handleMessage(
   ws: WebSocket,
@@ -142,16 +144,25 @@ async function handleMessage(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
   history: ProviderMessage[],
-  autopilot: boolean,
-  setAutopilot: (val: boolean) => void,
+  confirmMode: ConfirmMode,
+  setConfirmMode: (val: ConfirmMode) => void,
 ): Promise<void> {
   switch (msg.type) {
     case 'chat':
-      await handleChat(ws, msg.text, msg.provider, msg.model, getSong, storage, history, autopilot);
+      await handleChat(
+        ws,
+        msg.text,
+        msg.provider,
+        msg.model,
+        getSong,
+        storage,
+        history,
+        confirmMode,
+      );
       break;
 
-    case 'set_autopilot':
-      setAutopilot(msg.enabled);
+    case 'set_confirm_mode':
+      setConfirmMode(msg.mode);
       break;
 
     case 'confirm_response':
@@ -219,7 +230,7 @@ async function handleChat(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
   history: ProviderMessage[],
-  autopilot: boolean,
+  confirmMode: ConfirmMode,
 ): Promise<void> {
   const apiKey = storage.getApiKey(providerId);
   if (!apiKey) {
@@ -264,7 +275,10 @@ async function handleChat(
         } else if (chunk.type === 'tool_call') {
           hadToolCall = true;
 
-          if (!autopilot && DESTRUCTIVE_TOOLS.has(chunk.name)) {
+          const needsConfirm =
+            confirmMode === 'review' ||
+            (confirmMode === 'guard' && DESTRUCTIVE_TOOLS.has(chunk.name));
+          if (needsConfirm) {
             const confirmed = await requestConfirmation(ws, chunk.id, chunk.name, chunk.args);
             if (!confirmed) {
               history.push({ role: 'assistant', content: assistantContent, toolCall: chunk });

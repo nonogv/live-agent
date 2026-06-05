@@ -5,7 +5,7 @@ import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProviders } from './hooks/useProviders';
-import type { ChatMessage, ServerMessage, SettingsPayload } from './types';
+import type { ChatMessage, ConfirmMode, ServerMessage, SettingsPayload } from './types';
 
 // ── Chat state via useReducer ────────────────────────────────────────────────
 
@@ -135,7 +135,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 export function App() {
   const [tab, setTab] = useState<'chat' | 'settings'>('chat');
   const [debugMode, setDebugMode] = useState(false);
-  const [autopilot, setAutopilot] = useState(false);
+  const [confirmMode, setConfirmMode] = useState<ConfirmMode>('guard');
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
   const [chatState, dispatch] = useReducer(chatReducer, { messages: [], streaming: false });
 
@@ -218,10 +218,9 @@ export function App() {
     setDebugMode((d) => !d);
   }
 
-  function handleToggleAutopilot() {
-    const next = !autopilot;
-    setAutopilot(next);
-    sendMsg({ type: 'set_autopilot', enabled: next });
+  function handleSetConfirmMode(mode: ConfirmMode) {
+    setConfirmMode(mode);
+    sendMsg({ type: 'set_confirm_mode', mode });
   }
 
   function handleConfirm(toolCallId: string, confirmed: boolean) {
@@ -280,11 +279,11 @@ export function App() {
           model={model}
           models={models}
           debugMode={debugMode}
-          autopilot={autopilot}
+          confirmMode={confirmMode}
           onProviderChange={setProvider}
           onModelChange={setModel}
           onToggleDebug={handleToggleDebug}
-          onToggleAutopilot={handleToggleAutopilot}
+          onSetConfirmMode={handleSetConfirmMode}
           onDiagnose={handleDiagnose}
           onClear={handleClear}
         />
