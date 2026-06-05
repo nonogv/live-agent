@@ -10,7 +10,7 @@ interface MessageBubbleProps {
 }
 
 const ICON_BTN =
-  'flex cursor-pointer items-center justify-center rounded-default border-none p-1.5 transition-colors hover:bg-surface2';
+  'flex cursor-pointer items-center justify-center rounded-default border-none p-2 transition-colors hover:bg-surface2';
 
 /** Renders a single chat message with role-appropriate styling. */
 export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageBubbleProps) {
@@ -18,7 +18,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
 
   if (role === 'confirm' && toolCallId) {
     return (
-      <div className="ml-2 font-mono text-[11px] text-text-dim">
+      <div className="ml-2 font-mono text-[13px] text-text-dim">
         <div className="whitespace-pre-wrap">
           <span className="font-semibold text-[#7ab0d4]">⚠ {toolName}</span>
           <div className="mt-0.5 whitespace-pre-wrap text-text-dim">
@@ -30,14 +30,14 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
               onClick={() => onConfirm(toolCallId, true)}
               title="Confirm"
             >
-              <Check size={14} />
+              <Check size={16} />
             </button>
             <button
               className={`${ICON_BTN} text-red-400`}
               onClick={() => onConfirm(toolCallId, false)}
               title="Cancel"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -48,7 +48,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
   if (role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-default bg-[#2a2a2a] px-2.5 py-2 leading-normal break-words">
+        <div className="max-w-[85%] rounded-default bg-[#2a2a2a] px-3.5 py-2.5 leading-normal break-words">
           <div className="whitespace-pre-wrap">{content}</div>
         </div>
       </div>
@@ -63,7 +63,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
             {content}
           </div>
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="prose prose-invert prose-base max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
         )}
@@ -77,7 +77,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
     return (
       <button
         type="button"
-        className="ml-3 w-full cursor-pointer border-none bg-transparent p-0 text-left font-mono text-[11px] text-[#555]"
+        className="ml-3 w-full cursor-pointer border-none bg-transparent p-0 text-left font-mono text-[13px] text-[#555]"
         onClick={() => onToggleToolFold(message.id)}
         title={isFolded ? 'Expand tool call' : 'Collapse tool call'}
       >

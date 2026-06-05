@@ -24,7 +24,7 @@ export function MessageList({
   }, [messages]);
 
   return (
-    <div className="messages-scroll flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+    <div className="messages-scroll flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
       {messages.length === 0 ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (

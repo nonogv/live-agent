@@ -136,24 +136,24 @@ export function App() {
   }
 
   const tabBtn =
-    'flex cursor-pointer items-center justify-center rounded-default border-none p-1.5 transition-colors hover:bg-surface2';
+    'flex cursor-pointer items-center justify-center rounded-default border-none p-2 transition-colors hover:bg-surface2';
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex shrink-0 items-center justify-end gap-0.5 px-2 py-1">
+      <header className="flex shrink-0 items-center justify-end gap-1 px-4 py-2.5">
         <button
           className={`${tabBtn} ${tab === 'chat' ? 'text-accent' : 'text-text-dim'}`}
           onClick={() => handleTabChange('chat')}
           title="Chat"
         >
-          <MessageSquare size={15} />
+          <MessageSquare size={18} />
         </button>
         <button
           className={`${tabBtn} ${tab === 'settings' ? 'text-accent' : 'text-text-dim'}`}
           onClick={() => handleTabChange('settings')}
           title="Settings"
         >
-          <Settings size={15} />
+          <Settings size={18} />
         </button>
       </header>
 
