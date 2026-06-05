@@ -29,7 +29,14 @@ export interface ToolSchema {
 
 export type StreamChunk =
   | { type: 'text'; text: string }
-  | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown> };
+  | {
+      type: 'tool_call';
+      id: string;
+      name: string;
+      args: Record<string, unknown>;
+      /** Present on Gemini thinking-model responses; must be echoed back in history. */
+      thoughtSignature?: string;
+    };
 
 export interface ChatOptions {
   model: string;

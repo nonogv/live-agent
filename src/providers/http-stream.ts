@@ -12,6 +12,8 @@ export interface HttpChunk {
   id?: string;
   name?: string;
   args?: Record<string, unknown>;
+  /** Gemini thinking models attach this to every functionCall; must be round-tripped. */
+  thoughtSignature?: string;
 }
 
 export type HttpChunkStream = AsyncGenerator<HttpChunk, void, unknown>;
@@ -301,7 +303,12 @@ export async function* geminiStream(
         content?: {
           parts?: Array<{
             text?: string;
-            functionCall?: { name: string; args: Record<string, unknown> };
+            thought?: boolean;
+            functionCall?: {
+              name: string;
+              args: Record<string, unknown>;
+              thought_signature?: string;
+            };
           }>;
         };
       }>;
@@ -314,6 +321,8 @@ export async function* geminiStream(
     }
 
     for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+      // Skip internal "thought" text parts — they're reasoning traces, not output.
+      if (part.thought) continue;
       if (part.text) yield { type: 'text', text: part.text };
       if (part.functionCall) {
         yield {
@@ -321,6 +330,7 @@ export async function* geminiStream(
           id: `gemini-${Date.now()}`,
           name: part.functionCall.name,
           args: part.functionCall.args,
+          thoughtSignature: part.functionCall.thought_signature,
         };
       }
     }
@@ -332,7 +342,13 @@ export async function* geminiStream(
 export interface ProviderMsg {
   role: 'user' | 'assistant' | 'tool';
   content: string;
-  toolCall?: { id: string; name: string; args: Record<string, unknown> };
+  toolCall?: {
+    id: string;
+    name: string;
+    args: Record<string, unknown>;
+    /** Gemini thinking models attach this; must be echoed back in multi-turn requests. */
+    thoughtSignature?: string;
+  };
   toolCallId?: string;
   /** Name of the tool that produced this result (required by Gemini's functionResponse). */
   toolName?: string;
@@ -407,10 +423,9 @@ function buildGeminiContents(messages: ProviderMsg[]): unknown[] {
       };
     }
     if (m.role === 'assistant' && m.toolCall) {
-      return {
-        role: 'model',
-        parts: [{ functionCall: { name: m.toolCall.name, args: m.toolCall.args } }],
-      };
+      const fc: Record<string, unknown> = { name: m.toolCall.name, args: m.toolCall.args };
+      if (m.toolCall.thoughtSignature) fc['thought_signature'] = m.toolCall.thoughtSignature;
+      return { role: 'model', parts: [{ functionCall: fc }] };
     }
     return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] };
   });
