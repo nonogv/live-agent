@@ -271,6 +271,7 @@ async function handleChat(
               history.push({
                 role: 'tool',
                 toolCallId: chunk.id,
+                toolName: chunk.name,
                 content: JSON.stringify({ cancelled: true, reason: 'User declined.' }),
               });
               ws.send(
@@ -308,6 +309,7 @@ async function handleChat(
           history.push({
             role: 'tool',
             toolCallId: chunk.id,
+            toolName: chunk.name,
             content: JSON.stringify(result),
           });
 
