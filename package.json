@@ -10,7 +10,7 @@
     "start": "tsx build.ts && extensions-cli run",
     "typecheck": "tsc --noEmit",
     "generate": "node --import=tsx/esm scripts/generate-tools.ts",
-    "dev:ui": "vite",
+    "dev:ui": "vite --config ui/vite.config.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx,html,scss}\" \"ui/src/**/*.{ts,tsx,scss}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,html,scss}\" \"ui/src/**/*.{ts,tsx,scss}\"",
     "lint": "eslint --no-warn-ignored src/**/*.ts ui/src/**/*.{ts,tsx}",
