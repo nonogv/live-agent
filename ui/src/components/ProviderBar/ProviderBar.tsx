@@ -1,4 +1,5 @@
-import { Activity, Bug, Code2, Trash2 } from 'lucide-react';
+import { Activity, Bug, Code2, MessageSquare, Settings, Trash2 } from 'lucide-react';
+import { getPanelToggleMeta, type AppTab } from '../../appTab.js';
 import type { ConfirmMode, ProvidersRegistry } from '../../types';
 
 const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
@@ -11,6 +12,7 @@ const ICON_BTN =
   'flex cursor-pointer items-center justify-center rounded-default border-none p-1.5 transition-colors hover:bg-surface2 hover:text-text';
 
 interface ProviderBarProps {
+  tab: AppTab;
   providers: ProvidersRegistry;
   provider: string;
   model: string;
@@ -23,10 +25,12 @@ interface ProviderBarProps {
   onSetConfirmMode: (mode: ConfirmMode) => void;
   onDiagnose: () => void;
   onClear: () => void;
+  onToggleTab: () => void;
 }
 
-/** Model selector bar shown above the chat panel. */
+/** Bottom control bar: provider/model, chat tools, and chat ↔ settings toggle. */
 export function ProviderBar({
+  tab,
   providers,
   provider,
   model,
@@ -39,73 +43,90 @@ export function ProviderBar({
   onSetConfirmMode,
   onDiagnose,
   onClear,
+  onToggleTab,
 }: ProviderBarProps) {
+  const panelToggle = getPanelToggleMeta(tab);
+  const ToggleIcon = panelToggle.icon === 'settings' ? Settings : MessageSquare;
+
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
-      <select
-        className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
-        value={provider}
-        onChange={(e) => onProviderChange(e.target.value)}
-      >
-        {Object.entries(providers).map(([id, p]) => (
-          <option key={id} value={id}>
-            {p.label}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
-        value={model}
-        onChange={(e) => onModelChange(e.target.value)}
-      >
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label}
-          </option>
-        ))}
-      </select>
-
-      <button
-        className={`${ICON_BTN} ${debugMode ? 'text-accent' : 'text-text-dim'}`}
-        onClick={onToggleDebug}
-        title="Show tool calls in chat"
-      >
-        {debugMode ? <Bug size={16} /> : <Code2 size={16} />}
-      </button>
-
-      <div
-        className="flex shrink-0 overflow-hidden rounded-default border border-border"
-        role="group"
-        aria-label="Confirmation mode"
-      >
-        {CONFIRM_MODES.map(({ value, label, title }, index) => (
-          <button
-            key={value}
-            className={`cursor-pointer border-none px-2.5 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
-            onClick={() => onSetConfirmMode(value)}
-            title={title}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-t border-border bg-surface px-4 py-3">
       <button
         className={`${ICON_BTN} text-text-dim`}
-        onClick={onDiagnose}
-        title="Run environment diagnostics"
+        onClick={onToggleTab}
+        title={panelToggle.title}
+        aria-label={panelToggle.title}
       >
-        <Activity size={16} />
+        <ToggleIcon size={16} />
       </button>
 
-      <button
-        className={`${ICON_BTN} ml-auto text-text-dim`}
-        onClick={onClear}
-        title="Clear conversation"
-      >
-        <Trash2 size={16} />
-      </button>
+      {tab === 'chat' && (
+        <>
+          <select
+            className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+            value={provider}
+            onChange={(e) => onProviderChange(e.target.value)}
+          >
+            {Object.entries(providers).map(([id, p]) => (
+              <option key={id} value={id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+            value={model}
+            onChange={(e) => onModelChange(e.target.value)}
+          >
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+
+          <button
+            className={`${ICON_BTN} ${debugMode ? 'text-accent' : 'text-text-dim'}`}
+            onClick={onToggleDebug}
+            title="Show tool calls in chat"
+          >
+            {debugMode ? <Bug size={16} /> : <Code2 size={16} />}
+          </button>
+
+          <div
+            className="flex shrink-0 overflow-hidden rounded-default border border-border"
+            role="group"
+            aria-label="Confirmation mode"
+          >
+            {CONFIRM_MODES.map(({ value, label, title }, index) => (
+              <button
+                key={value}
+                className={`cursor-pointer border-none px-2.5 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
+                onClick={() => onSetConfirmMode(value)}
+                title={title}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className={`${ICON_BTN} text-text-dim`}
+            onClick={onDiagnose}
+            title="Run environment diagnostics"
+          >
+            <Activity size={16} />
+          </button>
+
+          <button
+            className={`${ICON_BTN} ml-auto text-text-dim`}
+            onClick={onClear}
+            title="Clear conversation"
+          >
+            <Trash2 size={16} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

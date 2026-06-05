@@ -1,16 +1,16 @@
 import { useCallback, useReducer, useRef, useState } from 'react';
-import { MessageSquare, Settings } from 'lucide-react';
 import { ChatPanel } from './components/ChatPanel';
 import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProviders } from './hooks/useProviders';
 import { chatReducer } from './chatReducer';
+import { toggleAppTab, type AppTab } from './appTab';
 import type { ClientMessage, ConfirmMode, ServerMessage, SettingsPayload } from './types';
 
 /** Root application component. Manages tab state and wires WebSocket to chat. */
 export function App() {
-  const [tab, setTab] = useState<'chat' | 'settings'>('chat');
+  const [tab, setTab] = useState<AppTab>('chat');
   const [debugMode, setDebugMode] = useState(false);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>('guard');
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
@@ -128,52 +128,16 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
-  function handleTabChange(t: 'chat' | 'settings') {
-    setTab(t);
-    if (t === 'settings') {
+  function handleToggleTab() {
+    const next = toggleAppTab(tab);
+    setTab(next);
+    if (next === 'settings') {
       setTimeout(() => sendMsg({ type: 'get_settings' }), 50);
     }
   }
 
-  const tabBtn =
-    'flex cursor-pointer items-center justify-center rounded-default border-none p-2 transition-colors hover:bg-surface2';
-
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex shrink-0 items-center justify-end gap-1 px-4 py-2.5">
-        <button
-          className={`${tabBtn} ${tab === 'chat' ? 'text-accent' : 'text-text-dim'}`}
-          onClick={() => handleTabChange('chat')}
-          title="Chat"
-        >
-          <MessageSquare size={18} />
-        </button>
-        <button
-          className={`${tabBtn} ${tab === 'settings' ? 'text-accent' : 'text-text-dim'}`}
-          onClick={() => handleTabChange('settings')}
-          title="Settings"
-        >
-          <Settings size={18} />
-        </button>
-      </header>
-
-      {tab === 'chat' && (
-        <ProviderBar
-          providers={providers}
-          provider={provider}
-          model={model}
-          models={models}
-          debugMode={debugMode}
-          confirmMode={confirmMode}
-          onProviderChange={setProvider}
-          onModelChange={setModel}
-          onToggleDebug={handleToggleDebug}
-          onSetConfirmMode={handleSetConfirmMode}
-          onDiagnose={handleDiagnose}
-          onClear={handleClear}
-        />
-      )}
-
       {tab === 'chat' ? (
         <ChatPanel
           messages={chatState.messages}
@@ -192,6 +156,23 @@ export function App() {
           onOpenUrl={handleOpenUrl}
         />
       )}
+
+      <ProviderBar
+        tab={tab}
+        providers={providers}
+        provider={provider}
+        model={model}
+        models={models}
+        debugMode={debugMode}
+        confirmMode={confirmMode}
+        onProviderChange={setProvider}
+        onModelChange={setModel}
+        onToggleDebug={handleToggleDebug}
+        onSetConfirmMode={handleSetConfirmMode}
+        onDiagnose={handleDiagnose}
+        onClear={handleClear}
+        onToggleTab={handleToggleTab}
+      />
     </div>
   );
 }

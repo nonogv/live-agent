@@ -44,7 +44,7 @@ export function SettingsPanel({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex-1 overflow-y-auto px-8 py-6">
       <div className="mb-6">
         <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
           API Keys

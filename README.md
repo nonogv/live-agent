@@ -26,6 +26,7 @@ Your API keys are stored locally in Live's extension storage and never leave you
 > **Note:** Live Agent is currently a developer preview — there is no packaged installer yet. You need to build from source.
 
 **To run the extension:**
+
 - **Ableton Live 12** version **12.4.5 beta** or later (any edition that supports Extensions)
 - An API key from at least one AI provider:
   - [Google AI Studio](https://aistudio.google.com) — **free tier available**, no credit card required. Good starting point.
@@ -33,6 +34,7 @@ Your API keys are stored locally in Live's extension storage and never leave you
   - [Anthropic](https://console.anthropic.com) — pay-as-you-go
 
 **To build from source (additional):**
+
 - **Node.js v24.16.0** (LTS) or higher — [download](https://nodejs.org)
 - The Ableton Extensions SDK (see Setup below)
 
@@ -80,9 +82,20 @@ npm run build
 ### 6. Add your API key
 
 - Right-click any track → **Live Agent**
-- Switch to the **Settings** tab
+- Click the **gear icon** in the bottom control bar to open Settings
 - Paste your API key for at least one provider
-- Switch back to **Chat** and start talking
+- Click the **chat icon** in the same bar to return and start talking
+
+## UI
+
+The chat webview opens in a **600×820 px** modal dialog (fixed size — the Extensions SDK does not support resizable or percentage-based dimensions).
+
+Layout (top to bottom):
+
+1. **Chat or Settings** — message list + input, or API key form
+2. **Bottom control bar** — single row with provider/model selectors, debug and confirmation mode, diagnose/clear actions (chat only), and one **panel toggle** (gear ↔ chat icon)
+
+The panel toggle swaps between chat and settings; chat-only controls hide while you are on Settings.
 
 ## Development
 
@@ -119,8 +132,11 @@ src/
 ├── live/
 │   ├── executor.ts       # Custom tool handler (get_live_state)
 │   └── generated-executor.ts  # Auto-generated SDK dispatcher (do not edit)
-└── ui/
-    └── index.html        # Self-contained chat + settings webview
+ui/src/                  # React + Vite webview (built to dist/ui/)
+├── App.tsx               # Root layout — content area + bottom control bar
+├── appTab.ts             # Chat ↔ settings toggle helpers
+├── chatReducer.ts        # Chat message state machine
+└── components/           # ChatPanel, ProviderBar (bottom controls), SettingsPanel, …
 ```
 
 ## Roadmap
@@ -130,12 +146,14 @@ src/
 > Current state: `0.1.0-alpha` — untested, developer-only, not publicly released.
 
 **v1 — Developer release**
+
 - [ ] Confirmation mode — ask before destructive actions (delete track, clear clip)
 - [ ] Autopilot mode — suppress confirmations, chain multiple actions without interruption
 - [ ] Checkpoint system — snapshot Live Set before agent operations, restore any point
 - [ ] Conversation persistence — save and restore history across Live restarts
 
 **v2 — Power features**
+
 - [ ] Consumer edition — packaged installer, managed auth, zero technical setup for non-developer musicians
 - [ ] Producer rules — persistent per-session or global agent instructions ("always 4/4", "prefix track names with section")
 - [ ] Rich context — @track / @clip / @device targeting in the chat
@@ -143,6 +161,7 @@ src/
 - [ ] SDK auto-sync — CI step to regenerate tool schemas on each SDK release (requires Ableton to publish the SDK to a public registry)
 
 **v3 — Platform**
+
 - [ ] Cloud sync — conversation history and rules across machines
 - [ ] Collaborative sessions — shared agent context for remote co-production
 
