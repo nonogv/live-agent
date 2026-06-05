@@ -21,7 +21,7 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 - [x] Send "Set tempo to 140" → verify `song_set_tempo` updates in Live
 - [x] Test with Anthropic key
 - [ ] Test with OpenAI key
-- [ ] Test with Gemini key
+- [ ] Test with Gemini key — bugs fixed (HTTP error surfacing + `functionResponse.name` in multi-turn calls); re-test with a valid key
 - [x] Test what happens when Live is closed and reopened (extension re-activates, history reloads ✅)
 
 ---
@@ -29,6 +29,12 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 ## v1 — Developer release
 
 Ship when alpha testing is complete and all v1 items below are done.
+
+### Provider fixes
+
+- [x] Gemini: HTTP errors (4xx/5xx) now surfaced as thrown errors instead of silently yielding nothing
+- [x] Gemini: `functionResponse.name` now carries the actual tool name in multi-turn conversations
+- [ ] Remember last used provider + model across sessions — remove the "Default Model" setting from `SettingsPanel`, instead persist `lastProvider` / `lastModel` to storage whenever a message is sent and restore on load
 
 ### SDK coverage
 
@@ -56,9 +62,15 @@ Ship when alpha testing is complete and all v1 items below are done.
 - [x] Prettier, ESLint, Husky + lint-staged, GitHub Actions CI
 - [x] SCSS modules, Vite build pipeline
 
-### Chat UX
+### Chat UX — UI polish
 
-- [ ] Markdown rendering in agent messages — `MessageBubble` currently renders `content` as plain text; add a library (e.g. `react-markdown`) and sanitise output
+The goal is a minimal, Copilot-like feel: clean chat flow, no visual noise, tool calls and reasoning visible but unobtrusive. Tailwind v4 is the right foundation — it's the current standard for React in 2026, works natively with Vite via `@tailwindcss/vite`, and eliminates the SCSS module per-component overhead. Ableton's palette maps cleanly to a Tailwind custom theme.
+
+- [ ] **Migrate to Tailwind v4** — install `tailwindcss` + `@tailwindcss/vite`, replace all `.module.scss` files with Tailwind utility classes, define a custom theme with Ableton-inspired colors (dark gray backgrounds, orange/amber accent `#e56a00`, neutral grays for secondary text)
+- [ ] **Minimal chat layout** — remove "YOU" / "LIVE AGENT" heading labels from every bubble; user messages right-aligned with subtle background, agent messages plain left-aligned text; reduce inter-bubble spacing and borders to a single faint separator line
+- [ ] **Bigger window** — increase `showModalDialog` dimensions from `440 × 700` to `480 × 760` in `extension.ts`
+- [ ] **Tool call / reasoning fold** — tool messages shown in lighter muted color while the agent is running; once the final answer arrives, they collapse to a single summary line (e.g. `▸ 3 tool calls`) that expands on click; no external library needed, just CSS transition + `useReducer`
+- [ ] **Markdown rendering** — `MessageBubble` renders plain text today; add `react-markdown` + `remark-gfm` for bold, code blocks, and tables in agent messages
 
 ### Conversation persistence
 
