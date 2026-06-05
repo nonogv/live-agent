@@ -22,4 +22,4 @@ Full standards are in [`CONTRIBUTING.md`](../../CONTRIBUTING.md). Key rules:
 - Webview UI is **React** (functional components + hooks, built with Vite). No class components. No Angular.
 - Generated files (`generated-tools.ts`, `generated-executor.ts`) are never edited by hand — run `npm run generate`.
 - Errors must be logged and rethrown — never silently swallowed.
-- `withinTransaction()` must wrap multi-step agent operations (once implemented).
+- In-extension undo/checkpoints are out of scope (#20–#23); rely on Live's native undo.

@@ -121,6 +121,12 @@ Generated files (`src/agent/generated-tools.ts`, `src/live/generated-executor.ts
 
 ---
 
+## Undo / checkpoints (out of scope for now)
+
+Issues **#20–#23** are **won't do** for v1. Live's built-in undo (**⌘Z**) already reverts agent tool steps; we are not building in-extension checkpoint UI or calling `Song.undo()` until the Extensions SDK exposes programmatic undo. See `BACKLOG.md` → *Won't do (for now)*.
+
+---
+
 ## Testing
 
 We use **Vitest**. Tests live next to source files as `*.test.ts`.

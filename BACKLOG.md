@@ -32,13 +32,18 @@ Remaining work clusters into five areas:
 2. **SDK gaps** — AudioClip state, Song scale/key, Promise\<void\> await, ClipLoopSettings docs, scene tempo note, SDK completeness audit (#8–#13)
 3. **UI polish** — Tailwind v4 migration, minimal layout, tool fold, markdown, Lucide icons, component structure (#14–#19)
 4. **Provider UX** — remember last used provider + model (#7)
-5. **Checkpoint system** — design + implement `withinTransaction` integration (#20–#23)
+
+---
+
+## Won't do (for now)
+
+- **In-extension undo / checkpoints (#20–#23)** — Live's native **⌘Z / undo** already reverts each agent tool step. No custom checkpoint UI or `Song.undo()` integration until the Extensions SDK exposes programmatic undo (or we have a compelling reason to rebuild what Live already does). Closing the agent dialog to reach Live's undo is acceptable for v1.
 
 ---
 
 ## v2 — Power features (#24–#29)
 
-Consumer installer, producer rules, @mentions, local models, SDK auto-sync, multi-point checkpoints.
+Consumer installer, producer rules, @mentions, local models, SDK auto-sync. Multi-point checkpoint history (#29) remains deferred — same rationale as #20–#23 unless SDK or UX constraints change.
 
 ---
 
