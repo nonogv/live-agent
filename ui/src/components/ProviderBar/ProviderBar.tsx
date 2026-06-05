@@ -9,7 +9,7 @@ const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
 ];
 
 const ICON_BTN =
-  'flex cursor-pointer items-center justify-center rounded-default border-none p-1.5 transition-colors hover:bg-surface2 hover:text-text';
+  'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-default border-none p-0 transition-colors hover:bg-surface2 hover:text-text';
 
 interface ProviderBarProps {
   tab: AppTab;
@@ -49,20 +49,11 @@ export function ProviderBar({
   const ToggleIcon = panelToggle.icon === 'settings' ? Settings : MessageSquare;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-t border-border bg-surface px-4 py-3">
-      <button
-        className={`${ICON_BTN} text-text-dim`}
-        onClick={onToggleTab}
-        title={panelToggle.title}
-        aria-label={panelToggle.title}
-      >
-        <ToggleIcon size={16} />
-      </button>
-
+    <div className="flex shrink-0 items-center gap-2 overflow-hidden border-t border-border bg-surface px-3 py-1.5">
       {tab === 'chat' && (
         <>
           <select
-            className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+            className="min-w-0 max-w-[30%] shrink cursor-pointer rounded-default border border-border bg-surface2 px-2 py-1 text-[12px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
             value={provider}
             onChange={(e) => onProviderChange(e.target.value)}
           >
@@ -74,7 +65,7 @@ export function ProviderBar({
           </select>
 
           <select
-            className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+            className="min-w-0 flex-1 shrink cursor-pointer rounded-default border border-border bg-surface2 px-2 py-1 text-[12px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
             value={model}
             onChange={(e) => onModelChange(e.target.value)}
           >
@@ -85,14 +76,6 @@ export function ProviderBar({
             ))}
           </select>
 
-          <button
-            className={`${ICON_BTN} ${debugMode ? 'text-accent' : 'text-text-dim'}`}
-            onClick={onToggleDebug}
-            title="Show tool calls in chat"
-          >
-            {debugMode ? <Bug size={16} /> : <Code2 size={16} />}
-          </button>
-
           <div
             className="flex shrink-0 overflow-hidden rounded-default border border-border"
             role="group"
@@ -101,7 +84,7 @@ export function ProviderBar({
             {CONFIRM_MODES.map(({ value, label, title }, index) => (
               <button
                 key={value}
-                className={`cursor-pointer border-none px-2.5 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
+                className={`cursor-pointer border-none px-2 py-0.5 text-[11px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
                 onClick={() => onSetConfirmMode(value)}
                 title={title}
               >
@@ -109,24 +92,44 @@ export function ProviderBar({
               </button>
             ))}
           </div>
-
-          <button
-            className={`${ICON_BTN} text-text-dim`}
-            onClick={onDiagnose}
-            title="Run environment diagnostics"
-          >
-            <Activity size={16} />
-          </button>
-
-          <button
-            className={`${ICON_BTN} ml-auto text-text-dim`}
-            onClick={onClear}
-            title="Clear conversation"
-          >
-            <Trash2 size={16} />
-          </button>
         </>
       )}
+
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        {tab === 'chat' && (
+          <>
+            <button
+              className={`${ICON_BTN} ${debugMode ? 'text-accent' : 'text-text-dim'}`}
+              onClick={onToggleDebug}
+              title="Show tool calls in chat"
+            >
+              {debugMode ? <Bug size={15} /> : <Code2 size={15} />}
+            </button>
+            <button
+              className={`${ICON_BTN} text-text-dim`}
+              onClick={onDiagnose}
+              title="Run environment diagnostics"
+            >
+              <Activity size={15} />
+            </button>
+            <button
+              className={`${ICON_BTN} text-text-dim`}
+              onClick={onClear}
+              title="Clear conversation"
+            >
+              <Trash2 size={15} />
+            </button>
+          </>
+        )}
+        <button
+          className={`${ICON_BTN} text-text-dim`}
+          onClick={onToggleTab}
+          title={panelToggle.title}
+          aria-label={panelToggle.title}
+        >
+          <ToggleIcon size={15} />
+        </button>
+      </div>
     </div>
   );
 }
