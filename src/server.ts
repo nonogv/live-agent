@@ -248,16 +248,19 @@ async function handleChat(
   try {
     const provider = createProvider(providerId, apiKey);
     const song = getSong();
-    const liveState = await getLiveState(song);
-    const systemPrompt = buildSystemPrompt(liveState, ALL_TOOL_SCHEMAS);
 
     // Agentic loop: keep calling the provider until it returns a final text
     // response with no tool calls (max 10 rounds as a safety net).
+    // The system prompt (and handle registry) is refreshed before every round so
+    // the LLM always sees the live session state — critical when multi-step
+    // operations delete or create tracks/clips between rounds.
     const MAX_ROUNDS = 10;
     let round = 0;
 
     while (round < MAX_ROUNDS) {
       round++;
+      const liveState = await getLiveState(song);
+      const systemPrompt = buildSystemPrompt(liveState, ALL_TOOL_SCHEMAS);
       let assistantContent = '';
       let hadToolCall = false;
 
