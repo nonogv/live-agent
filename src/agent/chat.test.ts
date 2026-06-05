@@ -25,6 +25,10 @@ const emptyTrack = (overrides: Partial<TrackInfo> = {}): TrackInfo => ({
 
 const emptyState: LiveState = {
   tempo: 120,
+  rootNote: 0,
+  scaleName: 'Major',
+  scaleMode: false,
+  scaleIntervals: [0, 2, 4, 5, 7, 9, 11],
   trackCount: 0,
   tracks: [],
   mainTrack: { id: 'main', mixer: emptyMixer },
@@ -88,10 +92,10 @@ describe('buildSystemPrompt', () => {
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('"Bass"');
-    expect(prompt).toContain('id:42');
+    expect(prompt).toContain('id:"42"');
     expect(prompt).toContain('[midi]');
     expect(prompt).toContain('"Room"');
-    expect(prompt).toContain('id:99');
+    expect(prompt).toContain('id:"99"');
     expect(prompt).toContain('[audio]');
   });
 
@@ -131,7 +135,7 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Analog');
     expect(prompt).toContain('Volume');
-    expect(prompt).toContain('id:20');
+    expect(prompt).toContain('id:"20"');
   });
 
   it('lists session clip names and MIDI notes', () => {
@@ -158,7 +162,7 @@ describe('buildSystemPrompt', () => {
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Bass Loop');
-    expect(prompt).toContain('id:55');
+    expect(prompt).toContain('id:"55"');
     expect(prompt).toContain('p:40');
   });
 
@@ -172,5 +176,61 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Verse');
     expect(prompt).toContain('Drop');
     expect(prompt).toContain('@32');
+  });
+
+  it('includes song key and scale info', () => {
+    const state: LiveState = {
+      ...emptyState,
+      rootNote: 2,
+      scaleName: 'Dorian',
+      scaleMode: true,
+      scaleIntervals: [0, 2, 3, 5, 7, 9, 10],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('root=2');
+    expect(prompt).toContain('"Dorian"');
+    expect(prompt).toContain('scaleMode=true');
+    expect(prompt).toContain('0, 2, 3, 5, 7, 9, 10');
+  });
+
+  it('renders audio clip file path and warp settings', () => {
+    const state: LiveState = {
+      ...emptyState,
+      trackCount: 1,
+      tracks: [
+        emptyTrack({
+          id: '1',
+          name: 'Drums',
+          type: 'audio',
+          sessionClips: [
+            {
+              id: '77',
+              name: 'Kick Loop',
+              slotIndex: 0,
+              duration: 4,
+              looping: true,
+              muted: false,
+              filePath: '/samples/kick.wav',
+              warping: true,
+              warpMode: 0,
+            },
+          ],
+        }),
+      ],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('/samples/kick.wav');
+    expect(prompt).toContain('warp:true');
+    expect(prompt).toContain('warpMode:0');
+  });
+
+  it('explains scene tempo -1 inherits song tempo', () => {
+    const state: LiveState = {
+      ...emptyState,
+      scenes: [{ id: 's1', name: 'Intro', tempo: -1 }],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('-1bpm');
+    expect(prompt).toContain('inherits the Song tempo');
   });
 });
