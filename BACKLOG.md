@@ -12,26 +12,30 @@ This file is kept as a high-level roadmap overview and a record of what shipped.
 Core loop validated ✅ — multi-step tool use, MIDI note generation, device insertion, parameter tweaking, deletion with confirmation, tempo changes all confirmed working (2026-06-05).
 
 **Shipped so far:**
-- React + Vite UI with SCSS modules, WebSocket streaming, `useReducer` chat state
+- React + Vite UI migrated to Tailwind v4, markdown rendering, foldable tool-call blocks, minimal Copilot-like layout
 - Full SDK coverage: all 15 classes, auto-generated schemas + executor (`npm run generate`)
-- `get_live_state` with tracks, mixer, devices + parameters, session/arrangement clips + MIDI notes, scenes, cue points, take lanes, main track
+- `get_live_state` with tracks, mixer, devices, session/arrangement clips + MIDI notes, scenes, cue points, take lanes, main track
 - Three-way confirmation mode: **Review** / **Guard** / **Auto**
 - Conversation persistence (load/save across restarts, clear button)
-- Prettier + ESLint + Husky + GitHub Actions CI
-- Gemini HTTP error surfacing + functionResponse.name fix
-- `lucide-react` installed
+- Provider + model remembered across sessions; settings as closable popup
+- Prettier + ESLint + Husky + GitHub Actions CI (no duplicate runs on PRs)
+- Gemini multi-turn: `thought_signature` round-trip, `functionResponse.name` fix, skip unsigned history entries
+- BigInt handle precision fix: float-to-string registry (`handle-registry.ts`) populates on every `getLiveState` so precision-lossy JSON numbers are recovered via float equality
+- Handle registry refreshed on every agentic round (rounds 2+) so stale handles after mid-turn deletions are resolved correctly
+- System prompt token reduction: device params, MIDI notes, full audio paths removed from overview; 429 retry with backoff
 
 ---
 
-## v1 — Developer release (~25 open issues)
+## v1 — Developer release (~30 open issues)
 
 *Ship when alpha testing passes and all v1 issues are closed.*
 
-Remaining work clusters into five areas:
-1. **Alpha testing** — OpenAI and Gemini keys (#5, #6)
-2. **SDK gaps** — AudioClip state, Song scale/key, Promise\<void\> await, ClipLoopSettings docs, scene tempo note, SDK completeness audit (#8–#13)
-3. **UI polish** — Tailwind v4 migration, minimal layout, tool fold, markdown, Lucide icons, component structure (#14–#19)
-4. **Provider UX** — remember last used provider + model (#7)
+Remaining work clusters into four areas:
+1. **Alpha testing** — OpenAI and Gemini manual QA (#5, #6)
+2. **SDK completeness audit** — double-check full SDK exposure and generator robustness (#13)
+3. **UI / UX bugs** — error indicator persists after rate-limit (#53), foldable tool block visible after disable (#56), diagnostic bubble styling (#57), settings popup (#49)
+4. **Provider / model UX** — default cheapest model on provider switch (#54), token economy (#55)
+5. **Stability bugs** — double-click to open after rebuild (#51), history lost on errored rebuild (#52)
 
 ---
 

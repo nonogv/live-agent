@@ -162,9 +162,12 @@ Keep commit messages in the imperative ("add", "fix", "remove") and under 72 cha
 `src/agent/generated-tools.ts` and `src/live/generated-executor.ts` are auto-generated. To regenerate after an SDK update:
 
 ```bash
-npm install /path/to/new-sdk
+# Copy new SDK tarballs into vendor/, update paths in package.json, then:
+npm install
 npm run generate
 npm run typecheck
 ```
 
 Commit all three changes together.
+
+`src/live/handle-registry.ts` is **not** generated — it is a stable runtime file that the generated executor imports. It maps the float64 representation of each Live object handle to its exact decimal string, allowing `parseHandleArg` to recover precision lost when an LLM passes a handle as a plain JSON number. Edit it if the recovery strategy changes, but do not delete it.

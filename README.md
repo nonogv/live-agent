@@ -49,11 +49,7 @@ npm install
 
 ### 2. Install the Ableton Extensions SDK
 
-Download the SDK package from the [Ableton beta program](https://ableton.github.io/extensions-sdk/), then install it locally:
-
-```bash
-npm install /path/to/extensions-sdk-x.x.x/package
-```
+The SDK tarballs are vendored in `vendor/` so `npm install` (step 1) already covers this. If you need to upgrade to a newer SDK release, copy the new `.tgz` files into `vendor/`, update the paths in `package.json`, and run `npm install` again.
 
 ### 3. (Optional) Regenerate tools
 
@@ -116,56 +112,65 @@ npm run generate
 
 ```
 scripts/
-└── generate-tools.ts     # Reads SDK types via ts-morph, writes generated-tools + generated-executor
+└── generate-tools.ts       # Reads SDK types via ts-morph, writes generated-tools + generated-executor
 
 src/
-├── extension.ts          # Entry point — registers context menu, starts server, opens webview
-├── server.ts             # Local HTTP + WebSocket server for chat streaming
-├── storage.ts            # Persistent API key + settings storage (JSON file in Live's storage dir)
+├── extension.ts            # Entry point — registers context menu, starts server, opens webview
+├── server.ts               # Local HTTP + WebSocket server, agentic loop, confirmation flow
+├── storage.ts              # Persistent key + settings storage (JSON file in Live's storage dir)
 ├── providers/
-│   ├── index.ts          # ProviderAdapter interface + factory
-│   ├── openai.ts         # OpenAI streaming adapter
-│   ├── anthropic.ts      # Anthropic streaming adapter
-│   └── gemini.ts         # Google Gemini adapter
+│   ├── index.ts            # ProviderAdapter interface, model list, factory
+│   └── http-stream.ts      # OpenAI / Anthropic / Gemini streaming via node:https (no SDK deps)
 ├── agent/
-│   ├── chat.ts           # System prompt builder
-│   ├── tools.ts          # Custom tool schemas (get_live_state)
-│   └── generated-tools.ts  # Auto-generated SDK tool schemas (do not edit)
+│   ├── chat.ts             # System prompt builder + LiveState types
+│   ├── safety.ts           # DESTRUCTIVE_TOOLS set for confirmation mode
+│   ├── tools.ts            # Custom tool schema (get_live_state)
+│   └── generated-tools.ts  # Auto-generated SDK tool schemas — do not edit
 ├── live/
-│   ├── executor.ts       # Custom tool handler (get_live_state)
-│   └── generated-executor.ts  # Auto-generated SDK dispatcher (do not edit)
-ui/src/                  # React + Vite webview (built to dist/ui/)
-├── App.tsx               # Root layout — content area + bottom control bar
-├── appTab.ts             # Chat ↔ settings toggle helpers
-├── chatReducer.ts        # Chat message state machine
-└── components/           # ChatPanel, ProviderBar (bottom controls), SettingsPanel, …
+│   ├── executor.ts         # getLiveState + custom tool handler
+│   ├── handle-registry.ts  # Float64 → exact BigInt string registry (precision recovery)
+│   └── generated-executor.ts  # Auto-generated SDK dispatcher — do not edit
+ui/src/                    # React + Vite webview (built to dist/ui/)
+├── App.tsx                 # Root layout — content area + bottom control bar
+├── appTab.ts               # Chat ↔ settings toggle helpers
+├── chatReducer.ts          # Chat message state machine
+├── types.ts                # Shared WebSocket message types
+└── components/             # ChatPanel, ChatInput, MessageBubble, ProviderBar, SettingsPanel, …
 ```
 
 ## Roadmap
 
-> **Note:** This roadmap is provisional. The project is in private development — strategy and priorities will be revisited before any public release.
+> **Note:** This roadmap is provisional. The project is in private alpha — strategy and priorities will be revisited before any public release.
 >
-> Current state: `0.1.0-alpha` — untested, developer-only, not publicly released.
+> Current state: `0.2.0-alpha.1` — developer preview, not publicly released.
 
-**v1 — Developer release**
+For the full issue-level backlog see [`BACKLOG.md`](./BACKLOG.md) and the [GitHub Project board](https://github.com/users/nonogv/projects/2).
 
-- [ ] Confirmation mode — ask before destructive actions (delete track, clear clip)
-- [ ] Autopilot mode — suppress confirmations, chain multiple actions without interruption
-- [ ] Checkpoint system — snapshot Live Set before agent operations, restore any point
-- [ ] Conversation persistence — save and restore history across Live restarts
+**Shipped (alpha)**
+
+- ✅ Multi-step agentic loop with tool chaining
+- ✅ Full SDK coverage — all 15 classes, auto-generated schemas + executor
+- ✅ Three confirmation modes: **Review** / **Guard** / **Auto**
+- ✅ Conversation persistence across Live restarts
+- ✅ React + Vite UI with Tailwind, markdown rendering, foldable tool calls
+- ✅ OpenAI, Anthropic, and Google Gemini support (streaming, free tiers)
+
+**v1 — Developer release** (in progress)
+
+- Provider / model UX polish (default to cheapest model, settings popup)
+- Remaining UI bugs and token-economy improvements
+- SDK completeness audit
 
 **v2 — Power features**
 
-- [ ] Consumer edition — packaged installer, managed auth, zero technical setup for non-developer musicians
-- [ ] Producer rules — persistent per-session or global agent instructions ("always 4/4", "prefix track names with section")
-- [ ] Rich context — @track / @clip / @device targeting in the chat
-- [ ] Local model support — Ollama and other local LLMs, no API key required
-- [ ] SDK auto-sync — CI step to regenerate tool schemas on each SDK release (requires Ableton to publish the SDK to a public registry)
+- Consumer installer, managed auth, zero-setup for non-developer musicians
+- Producer rules — persistent per-session agent instructions
+- Rich context — @track / @clip / @device mentions in chat
+- Local model support (Ollama, no API key required)
 
 **v3 — Platform**
 
-- [ ] Cloud sync — conversation history and rules across machines
-- [ ] Collaborative sessions — shared agent context for remote co-production
+- Cloud sync, collaborative sessions
 
 ## License
 
