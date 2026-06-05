@@ -1,4 +1,11 @@
-import { MidiClip, MidiTrack, RackDevice, Simpler, type Song } from '@ableton-extensions/sdk';
+import {
+  AudioClip,
+  MidiClip,
+  MidiTrack,
+  RackDevice,
+  Simpler,
+  type Song,
+} from '@ableton-extensions/sdk';
 import type { LiveState, DeviceInfo, ClipInfo } from '../agent/chat.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -36,37 +43,14 @@ async function readDevices(devices: Song<'1.0.0'>['tracks'][0]['devices']): Prom
   );
 }
 
-function readClips(clipSlots: Song<'1.0.0'>['tracks'][0]['clipSlots']): ClipInfo[] {
-  const result: ClipInfo[] = [];
-  clipSlots.forEach((slot, idx) => {
-    const clip = slot.clip;
-    if (!clip) return;
-    result.push({
-      id: clip.handle.id.toString(),
-      name: clip.name,
-      slotIndex: idx,
-      duration: clip.duration,
-      looping: clip.looping,
-      muted: clip.muted,
-      notes:
-        clip instanceof MidiClip
-          ? clip.notes.map((n) => ({
-              pitch: n.pitch,
-              startTime: n.startTime,
-              duration: n.duration,
-              velocity: n.velocity ?? 100,
-            }))
-          : undefined,
-    });
-  });
-  return result;
-}
-
-function readArrangementClips(clips: Song<'1.0.0'>['tracks'][0]['arrangementClips']): ClipInfo[] {
-  return clips.map((clip) => ({
+function buildClipInfo(
+  clip: Song<'1.0.0'>['tracks'][0]['clipSlots'][0]['clip'] & object,
+  slotIndex: number,
+): ClipInfo {
+  const info: ClipInfo = {
     id: clip.handle.id.toString(),
     name: clip.name,
-    slotIndex: -1, // arrangement clips have no slot index
+    slotIndex,
     duration: clip.duration,
     looping: clip.looping,
     muted: clip.muted,
@@ -79,7 +63,27 @@ function readArrangementClips(clips: Song<'1.0.0'>['tracks'][0]['arrangementClip
             velocity: n.velocity ?? 100,
           }))
         : undefined,
-  }));
+  };
+  if (clip instanceof AudioClip) {
+    info.filePath = clip.filePath;
+    info.warping = clip.warping;
+    info.warpMode = clip.warpMode;
+  }
+  return info;
+}
+
+function readClips(clipSlots: Song<'1.0.0'>['tracks'][0]['clipSlots']): ClipInfo[] {
+  const result: ClipInfo[] = [];
+  clipSlots.forEach((slot, idx) => {
+    const clip = slot.clip;
+    if (!clip) return;
+    result.push(buildClipInfo(clip, idx));
+  });
+  return result;
+}
+
+function readArrangementClips(clips: Song<'1.0.0'>['tracks'][0]['arrangementClips']): ClipInfo[] {
+  return clips.map((clip) => buildClipInfo(clip, -1));
 }
 
 async function readMixer(mixer: Song<'1.0.0'>['tracks'][0]['mixer']) {
@@ -126,6 +130,10 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
 
   return {
     tempo: song.tempo,
+    rootNote: song.rootNote,
+    scaleName: song.scaleName,
+    scaleMode: song.scaleMode,
+    scaleIntervals: song.scaleIntervals,
     trackCount: song.tracks.length,
     tracks: [...regularTracks, ...returnTracks],
     mainTrack: {

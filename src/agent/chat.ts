@@ -16,6 +16,12 @@ export interface ClipInfo {
   duration: number;
   looping: boolean;
   muted: boolean;
+  /** Absolute path to the audio file (AudioClip only). */
+  filePath?: string;
+  /** Whether warping is enabled (AudioClip only). */
+  warping?: boolean;
+  /** WarpMode enum value: 0=Beats, 1=Tones, 2=Texture, 3=Re-Pitch, 4=Complex, 6=ComplexPro (AudioClip only). */
+  warpMode?: number;
   notes?: NoteInfo[];
 }
 
@@ -56,6 +62,14 @@ export interface TrackInfo {
 
 export interface LiveState {
   tempo: number;
+  /** Root note of the current scale as a MIDI pitch class (0=C … 11=B). */
+  rootNote: number;
+  /** Name of the scale selected in Live (e.g. "Major", "Minor"). */
+  scaleName: string;
+  /** Whether Live's Scale Mode is enabled. */
+  scaleMode: boolean;
+  /** Semitone intervals of the current scale relative to rootNote. */
+  scaleIntervals: number[];
   trackCount: number;
   tracks: TrackInfo[];
   mainTrack: { id: string; mixer: MixerInfo };
@@ -127,7 +141,11 @@ function renderClip(c: ClipInfo, indent: string): string {
           .map((n) => `p:${n.pitch} t:${n.startTime} d:${n.duration} v:${n.velocity}`)
           .join(', ')
       : '';
-  return `${indent}${label}: "${c.name}" (id:${c.id}) — ${c.duration} beats${flagStr}${noteStr}`;
+  const audioStr =
+    c.filePath !== undefined
+      ? `\n${indent}  Audio: ${c.filePath}${c.warping !== undefined ? ` warp:${c.warping}` : ''}${c.warpMode !== undefined ? ` warpMode:${c.warpMode}` : ''}`
+      : '';
+  return `${indent}${label}: "${c.name}" (id:${c.id}) — ${c.duration} beats${flagStr}${noteStr}${audioStr}`;
 }
 
 function renderTrack(t: TrackInfo): string {
@@ -151,7 +169,8 @@ export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[
   const trackList = liveState.tracks.map(renderTrack).join('\n');
 
   const sceneStr = liveState.scenes.length
-    ? liveState.scenes.map((s) => `  "${s.name}" (id:${s.id}) ${s.tempo}bpm`).join('\n')
+    ? liveState.scenes.map((s) => `  "${s.name}" (id:${s.id}) ${s.tempo}bpm`).join('\n') +
+      '\n  (A scene tempo of -1 means the scene inherits the Song tempo and has no override set.)'
     : '  (none)';
 
   const cueStr = liveState.cuePoints.length
@@ -189,6 +208,7 @@ You help music producers control their session using natural language.
 
 ## Current session state
 - Tempo: ${liveState.tempo} BPM
+- Key/Scale: root=${liveState.rootNote} "${liveState.scaleName}" scaleMode=${liveState.scaleMode} intervals=[${liveState.scaleIntervals.join(', ')}]
 - Tracks (${liveState.trackCount} regular + ${liveState.tracks.filter((t) => t.type === 'return').length} return):
 ${trackList || '  (no tracks yet)'}
 - Scenes:

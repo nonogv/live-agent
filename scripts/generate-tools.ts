@@ -10,50 +10,58 @@
  * Re-run whenever the SDK is updated to get new tools automatically.
  */
 
-import { Project, ClassDeclaration, MethodDeclaration, ParameterDeclaration, Type } from "ts-morph";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { Project, ClassDeclaration, MethodDeclaration, ParameterDeclaration, Type } from 'ts-morph';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, "..");
-const SDK_TYPES = path.join(ROOT, "node_modules/@ableton-extensions/sdk/dist/index.d.mts");
-const OUT_TOOLS = path.join(ROOT, "src/agent/generated-tools.ts");
-const OUT_EXECUTOR = path.join(ROOT, "src/live/generated-executor.ts");
+const ROOT = path.join(__dirname, '..');
+const SDK_TYPES = path.join(ROOT, 'node_modules/@ableton-extensions/sdk/dist/index.d.mts');
+const OUT_TOOLS = path.join(ROOT, 'src/agent/generated-tools.ts');
+const OUT_EXECUTOR = path.join(ROOT, 'src/live/generated-executor.ts');
 
 // ─── SDK object class names — these become handle-id references in tool params ─
 const SDK_OBJECT_CLASSES = new Set([
-  "Track", "MidiTrack", "AudioTrack",
-  "Clip", "MidiClip", "AudioClip",
-  "ClipSlot",
-  "Scene",
-  "Device",
-  "DeviceParameter",
-  "Simpler", "Sample",
-  "TakeLane",
-  "Chain", "DrumChain", "RackDevice", "DrumRack",
-  "CuePoint",
-  "DataModelObject",
+  'Track',
+  'MidiTrack',
+  'AudioTrack',
+  'Clip',
+  'MidiClip',
+  'AudioClip',
+  'ClipSlot',
+  'Scene',
+  'Device',
+  'DeviceParameter',
+  'Simpler',
+  'Sample',
+  'TakeLane',
+  'Chain',
+  'DrumChain',
+  'RackDevice',
+  'DrumRack',
+  'CuePoint',
+  'DataModelObject',
 ]);
 
 // ─── Classes to extract tools from (in order) ────────────────────────────────
 const TARGET_CLASSES = [
-  "Song",
-  "Track",
-  "MidiTrack",
-  "AudioTrack",
-  "ClipSlot",
-  "Clip",
-  "MidiClip",
-  "AudioClip",
-  "Scene",
-  "CuePoint",
-  "Device",
-  "DeviceParameter",
-  "Simpler",
-  "RackDevice",
-  "Chain",
-  "TakeLane",
+  'Song',
+  'Track',
+  'MidiTrack',
+  'AudioTrack',
+  'ClipSlot',
+  'Clip',
+  'MidiClip',
+  'AudioClip',
+  'Scene',
+  'CuePoint',
+  'Device',
+  'DeviceParameter',
+  'Simpler',
+  'RackDevice',
+  'Chain',
+  'TakeLane',
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -68,19 +76,19 @@ interface JsonSchemaProperty {
 }
 
 interface ToolParam {
-  name: string;        // parameter name in the tool schema
+  name: string; // parameter name in the tool schema
   originalName: string;
   schema: JsonSchemaProperty;
   required: boolean;
   isHandleRef: boolean; // true if this replaces an SDK object reference
-  handleClass: string;  // e.g. "Track"
+  handleClass: string; // e.g. "Track"
 }
 
 interface GeneratedTool {
-  name: string;        // e.g. song_createMidiTrack
+  name: string; // e.g. song_createMidiTrack
   description: string;
   targetClass: string; // e.g. "Song"
-  method: string;      // e.g. "createMidiTrack"
+  method: string; // e.g. "createMidiTrack"
   params: ToolParam[];
   returnDescription: string;
   hasContext: boolean; // needs additional context (track_id to find ClipSlot, etc.)
@@ -90,7 +98,7 @@ interface GeneratedTool {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 function main() {
-  console.log("Reading SDK types from", SDK_TYPES);
+  console.log('Reading SDK types from', SDK_TYPES);
 
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   const sourceFile = project.addSourceFileAtPath(SDK_TYPES);
@@ -125,9 +133,9 @@ function main() {
   writeToolSchemas(tools);
   writeExecutor(tools);
 
-  console.log("\nGenerated:");
-  console.log(" ", OUT_TOOLS);
-  console.log(" ", OUT_EXECUTOR);
+  console.log('\nGenerated:');
+  console.log(' ', OUT_TOOLS);
+  console.log(' ', OUT_EXECUTOR);
 }
 
 // ─── Method extraction ────────────────────────────────────────────────────────
@@ -137,12 +145,12 @@ function extractMethods(cls: ClassDeclaration, className: string): GeneratedTool
 
   for (const method of cls.getMethods()) {
     // Skip private, internal, constructor helpers
-    if (method.hasModifier("private") || method.hasModifier("protected")) continue;
+    if (method.hasModifier('private') || method.hasModifier('protected')) continue;
 
     const name = method.getName();
 
     // Skip methods inherited from DataModelObject that are unrelated to Live control
-    if (["constructor", "toString", "valueOf"].includes(name)) continue;
+    if (['constructor', 'toString', 'valueOf'].includes(name)) continue;
 
     const jsDoc = getJsDoc(method);
     const params = buildParams(method, className);
@@ -178,7 +186,7 @@ function extractSetters(cls: ClassDeclaration, className: string): GeneratedTool
   const tools: GeneratedTool[] = [];
 
   for (const setter of cls.getSetAccessors()) {
-    if (setter.hasModifier("private") || setter.hasModifier("protected")) continue;
+    if (setter.hasModifier('private') || setter.hasModifier('protected')) continue;
 
     const propName = setter.getName();
     const jsDoc = getJsDoc(setter);
@@ -192,12 +200,12 @@ function extractSetters(cls: ClassDeclaration, className: string): GeneratedTool
     const contextParams = getContextParams(className);
 
     const valueParam: ToolParam = {
-      name: "value",
-      originalName: "value",
+      name: 'value',
+      originalName: 'value',
       schema: { ...schema, description: schema.description || `New value for ${propName}.` },
       required: true,
       isHandleRef: false,
-      handleClass: "",
+      handleClass: '',
     };
 
     tools.push({
@@ -206,7 +214,7 @@ function extractSetters(cls: ClassDeclaration, className: string): GeneratedTool
       targetClass: className,
       method: `set ${propName}`,
       params: [valueParam],
-      returnDescription: "void",
+      returnDescription: 'void',
       hasContext: contextParams.length > 0,
       contextParams,
     });
@@ -226,7 +234,7 @@ function buildParams(method: MethodDeclaration, className: string): ToolParam[] 
     const typeName = type.getText();
 
     // Skip callback parameters
-    if (typeName.includes("=>") || typeName.includes("callback")) continue;
+    if (typeName.includes('=>') || typeName.includes('callback')) continue;
 
     // Check if this is an SDK object reference — use symbol name (resolves generics correctly)
     const sdkClass = getSdkClassName(type) ?? findSdkClass(typeName);
@@ -235,7 +243,7 @@ function buildParams(method: MethodDeclaration, className: string): ToolParam[] 
         name: `${paramName}_id`,
         originalName: paramName,
         schema: {
-          type: "string",
+          type: 'string',
           description: `Handle ID of the ${sdkClass} to act on.`,
         },
         required: !param.isOptional(),
@@ -263,14 +271,14 @@ function buildParams(method: MethodDeclaration, className: string): ToolParam[] 
         name: paramName,
         originalName: paramName,
         schema: {
-          type: "object",
+          type: 'object',
           description: `Configuration object for ${method.getName()}.`,
           properties: inlineProps,
           required,
         },
         required: !param.isOptional(),
         isHandleRef: false,
-        handleClass: "",
+        handleClass: '',
       });
       continue;
     }
@@ -287,7 +295,7 @@ function buildParams(method: MethodDeclaration, className: string): ToolParam[] 
       schema,
       required: !param.isOptional(),
       isHandleRef: false,
-      handleClass: "",
+      handleClass: '',
     });
   }
 
@@ -314,12 +322,12 @@ function getSdkClassName(type: Type): string | null {
 function typeToJsonSchema(
   type: Type,
   paramName: string,
-  contextClass: string
+  contextClass: string,
 ): JsonSchemaProperty | null {
   const text = type.getText();
 
   // Unwrap Promise<T>
-  if (text.startsWith("Promise<")) {
+  if (text.startsWith('Promise<')) {
     const inner = type.getTypeArguments()[0];
     if (inner) return typeToJsonSchema(inner, paramName, contextClass);
   }
@@ -327,27 +335,31 @@ function typeToJsonSchema(
   // Unwrap T | undefined
   if (type.isUnion()) {
     const nonUndefined = type.getUnionTypes().filter((t) => !t.isUndefined());
-    if (nonUndefined.length === 1) return typeToJsonSchema(nonUndefined[0], paramName, contextClass);
+    if (nonUndefined.length === 1)
+      return typeToJsonSchema(nonUndefined[0], paramName, contextClass);
   }
 
-  if (type.isString() || text === "string") return { type: "string", description: "" };
-  if (type.isNumber() || text === "number") return { type: "number", description: "" };
-  if (type.isBoolean() || text === "boolean") return { type: "boolean", description: "" };
-  if (type.isNull() || type.isUndefined() || type.isVoid()) return { type: "null", description: "" };
+  if (type.isString() || text === 'string') return { type: 'string', description: '' };
+  if (type.isNumber() || text === 'number') return { type: 'number', description: '' };
+  if (type.isBoolean() || text === 'boolean') return { type: 'boolean', description: '' };
+  if (type.isNull() || type.isUndefined() || type.isVoid())
+    return { type: 'null', description: '' };
 
   // Enum — resolve actual member names and values instead of raw TS type path
   if (type.isEnum() || type.isEnumLiteral()) {
     const symbol = type.getSymbol() ?? type.getAliasSymbol();
-    const members = symbol?.getDeclarations()
-      .flatMap(d => ("getMembers" in d ? (d as unknown as { getMembers(): unknown[] }).getMembers() : []))
-      .map((m: unknown) => {
-        const member = m as { getName(): string; getValue(): string | number | undefined };
-        return `${member.getValue() ?? 0} (${member.getName()})`;
-      }) ?? [];
-    const desc = members.length > 0
-      ? `One of: ${members.join(", ")}`
-      : `Enum value (number)`;
-    return { type: "number", description: desc };
+    const members =
+      symbol
+        ?.getDeclarations()
+        .flatMap((d) =>
+          'getMembers' in d ? (d as unknown as { getMembers(): unknown[] }).getMembers() : [],
+        )
+        .map((m: unknown) => {
+          const member = m as { getName(): string; getValue(): string | number | undefined };
+          return `${member.getValue() ?? 0} (${member.getName()})`;
+        }) ?? [];
+    const desc = members.length > 0 ? `One of: ${members.join(', ')}` : `Enum value (number)`;
+    return { type: 'number', description: desc };
   }
 
   // Literal union (e.g. "beats" | "tones")
@@ -355,8 +367,8 @@ function typeToJsonSchema(
     const members = type.getUnionTypes();
     if (members.every((m) => m.isStringLiteral())) {
       return {
-        type: "string",
-        description: "",
+        type: 'string',
+        description: '',
         enum: members.map((m) => m.getLiteralValue() as string),
       };
     }
@@ -368,28 +380,49 @@ function typeToJsonSchema(
     if (elementType) {
       const items = typeToJsonSchema(elementType, paramName, contextClass);
       if (items) {
-        return { type: "array", description: "", items };
+        return { type: 'array', description: '', items };
       }
     }
   }
 
-  // NoteDescription
-  if (text.includes("NoteDescription")) {
+  // ClipLoopSettings — optional loop region for createAudioClip args
+  if (text.includes('ClipLoopSettings')) {
     return {
-      type: "object",
-      description: "A MIDI note.",
+      type: 'object',
+      description:
+        'Initial loop region and markers for a new audio clip (all positions in beats). ' +
+        'When looping is false, loopStart equals startMarker and loopEnd equals endMarker.',
       properties: {
-        pitch: { type: "number", description: "MIDI note number (0–127)." },
-        startTime: { type: "number", description: "Start time in beats." },
-        duration: { type: "number", description: "Duration in beats." },
-        velocity: { type: "number", description: "Velocity (0–127). Default: 100." },
-        releaseVelocity: { type: "number", description: "Release velocity (0–127). Optional." },
-        velocityDeviation: { type: "number", description: "Velocity deviation for randomization. Optional." },
-        muted: { type: "boolean", description: "Whether the note is muted." },
-        probability: { type: "number", description: "Note probability (0–1)." },
-        selected: { type: "boolean", description: "Whether the note is selected." },
+        looping: { type: 'boolean', description: 'Whether the clip loops.' },
+        startMarker: { type: 'number', description: 'Start marker position in beats.' },
+        endMarker: { type: 'number', description: 'End marker position in beats.' },
+        loopStart: { type: 'number', description: 'Loop start position in beats.' },
+        loopEnd: { type: 'number', description: 'Loop end position in beats.' },
       },
-      required: ["pitch", "startTime", "duration"],
+      required: ['looping', 'startMarker', 'endMarker', 'loopStart', 'loopEnd'],
+    };
+  }
+
+  // NoteDescription
+  if (text.includes('NoteDescription')) {
+    return {
+      type: 'object',
+      description: 'A MIDI note.',
+      properties: {
+        pitch: { type: 'number', description: 'MIDI note number (0–127).' },
+        startTime: { type: 'number', description: 'Start time in beats.' },
+        duration: { type: 'number', description: 'Duration in beats.' },
+        velocity: { type: 'number', description: 'Velocity (0–127). Default: 100.' },
+        releaseVelocity: { type: 'number', description: 'Release velocity (0–127). Optional.' },
+        velocityDeviation: {
+          type: 'number',
+          description: 'Velocity deviation for randomization. Optional.',
+        },
+        muted: { type: 'boolean', description: 'Whether the note is muted.' },
+        probability: { type: 'number', description: 'Note probability (0–1).' },
+        selected: { type: 'boolean', description: 'Whether the note is selected.' },
+      },
+      required: ['pitch', 'startTime', 'duration'],
     };
   }
 
@@ -397,13 +430,13 @@ function typeToJsonSchema(
   const sdkClass = getSdkClassName(type) ?? findSdkClass(text);
   if (sdkClass) {
     return {
-      type: "string",
+      type: 'string',
       description: `Handle ID of the ${sdkClass}.`,
     };
   }
 
   // bigint
-  if (text === "bigint") return { type: "number", description: "" };
+  if (text === 'bigint') return { type: 'number', description: '' };
 
   // Unknown — log and return null to skip method
   return null;
@@ -417,55 +450,58 @@ function typeToJsonSchema(
  */
 function getContextParams(className: string): ToolParam[] {
   switch (className) {
-    case "ClipSlot":
+    case 'ClipSlot':
       return [
         {
-          name: "track_id",
-          originalName: "track_id",
-          schema: { type: "string", description: "Handle ID of the track containing this clip slot." },
+          name: 'track_id',
+          originalName: 'track_id',
+          schema: {
+            type: 'string',
+            description: 'Handle ID of the track containing this clip slot.',
+          },
           required: true,
           isHandleRef: true,
-          handleClass: "Track",
+          handleClass: 'Track',
         },
         {
-          name: "slot_index",
-          originalName: "slot_index",
-          schema: { type: "number", description: "0-based index of the clip slot on the track." },
+          name: 'slot_index',
+          originalName: 'slot_index',
+          schema: { type: 'number', description: '0-based index of the clip slot on the track.' },
           required: true,
           isHandleRef: false,
-          handleClass: "",
+          handleClass: '',
         },
       ];
-    case "TakeLane":
+    case 'TakeLane':
       return [
         {
-          name: "take_lane_id",
-          originalName: "take_lane_id",
-          schema: { type: "string", description: "Handle ID of the take lane." },
+          name: 'take_lane_id',
+          originalName: 'take_lane_id',
+          schema: { type: 'string', description: 'Handle ID of the take lane.' },
           required: true,
           isHandleRef: true,
-          handleClass: "TakeLane",
+          handleClass: 'TakeLane',
         },
       ];
-    case "Track":
-    case "MidiTrack":
-    case "AudioTrack":
-    case "Clip":
-    case "MidiClip":
-    case "AudioClip":
-    case "Scene":
-    case "CuePoint":
-    case "Device":
-    case "DeviceParameter":
-    case "Simpler":
-    case "RackDevice":
-    case "Chain":
+    case 'Track':
+    case 'MidiTrack':
+    case 'AudioTrack':
+    case 'Clip':
+    case 'MidiClip':
+    case 'AudioClip':
+    case 'Scene':
+    case 'CuePoint':
+    case 'Device':
+    case 'DeviceParameter':
+    case 'Simpler':
+    case 'RackDevice':
+    case 'Chain':
       return [
         {
           name: `${toSnakeCase(className)}_id`,
           originalName: `${toSnakeCase(className)}_id`,
           schema: {
-            type: "string",
+            type: 'string',
             description: `Handle ID of the ${className} to act on.`,
           },
           required: true,
@@ -489,28 +525,30 @@ function findSdkClass(typeName: string): string | null {
 
 function toSnakeCase(str: string): string {
   return str
-    .replace(/([A-Z])/g, "_$1")
+    .replace(/([A-Z])/g, '_$1')
     .toLowerCase()
-    .replace(/^_/, "")
-    .replace(/__+/g, "_");
+    .replace(/^_/, '')
+    .replace(/__+/g, '_');
 }
 
-function getJsDoc(node: MethodDeclaration | ReturnType<ClassDeclaration["getSetAccessors"]>[0]): string {
+function getJsDoc(
+  node: MethodDeclaration | ReturnType<ClassDeclaration['getSetAccessors']>[0],
+): string {
   const docs = node.getJsDocs();
-  if (docs.length === 0) return "";
+  if (docs.length === 0) return '';
   return docs
     .map((d) => d.getDescription().trim())
-    .join(" ")
-    .replace(/\n/g, " ")
-    .replace(/\s+/g, " ")
+    .join(' ')
+    .replace(/\n/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function describeReturn(method: MethodDeclaration): string {
   const ret = method.getReturnType().getText();
-  if (ret.startsWith("Promise<")) {
-    const inner = ret.slice(8, -1);
-    return inner === "void" ? "void" : `Promise<${inner}>`;
+  if (ret.startsWith('Promise<')) {
+    // Keep Promise<void> distinct from sync void so the executor awaits it.
+    return ret;
   }
   return ret;
 }
@@ -541,7 +579,9 @@ function writeToolSchemas(tools: GeneratedTool[]) {
     lines.push(`    description: ${JSON.stringify(tool.description)},`);
     lines.push(`    parameters: {`);
     lines.push(`      type: "object",`);
-    lines.push(`      properties: ${JSON.stringify(properties, null, 6).split("\n").join("\n      ")},`);
+    lines.push(
+      `      properties: ${JSON.stringify(properties, null, 6).split('\n').join('\n      ')},`,
+    );
     if (required.length > 0) {
       lines.push(`      required: ${JSON.stringify(required)},`);
     }
@@ -552,7 +592,7 @@ function writeToolSchemas(tools: GeneratedTool[]) {
   lines.push(`];`);
   lines.push(``);
 
-  fs.writeFileSync(OUT_TOOLS, lines.join("\n"), "utf-8");
+  fs.writeFileSync(OUT_TOOLS, lines.join('\n'), 'utf-8');
 }
 
 // ─── Output: Executor ─────────────────────────────────────────────────────────
@@ -706,113 +746,114 @@ function writeExecutor(tools: GeneratedTool[]) {
   lines.push(`}`);
   lines.push(``);
 
-  fs.writeFileSync(OUT_EXECUTOR, lines.join("\n"), "utf-8");
+  fs.writeFileSync(OUT_EXECUTOR, lines.join('\n'), 'utf-8');
 }
 
 function generateDispatchBody(tool: GeneratedTool): string {
   const { targetClass, method, params, contextParams } = tool;
-  const a = "args";
+  const a = 'args';
 
   // Resolve the target object
-  let objectExpr = "";
-  let prefix = "";
+  let objectExpr = '';
+  let prefix = '';
 
   switch (targetClass) {
-    case "Song":
-      objectExpr = "song";
+    case 'Song':
+      objectExpr = 'song';
       break;
-    case "Track": {
+    case 'Track': {
       const idParam = contextParams[0];
       prefix = `const _obj = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "MidiTrack": {
+    case 'MidiTrack': {
       const idParam = contextParams[0];
       prefix = `const _baseTrack = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseTrack instanceof MidiTrack)) throw new Error("Track is not a MIDI track.");\n      const _obj = _baseTrack;\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "AudioTrack": {
+    case 'AudioTrack': {
       const idParam = contextParams[0];
       prefix = `const _baseTrack = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseTrack instanceof AudioTrack)) throw new Error("Track is not an Audio track.");\n      const _obj = _baseTrack;\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "ClipSlot": {
-      prefix = [
-        `const _track = findTrack(song, ${a}["track_id"] as string);`,
-        `const _slotIdx = ${a}["slot_index"] as number;`,
-        `const _obj = _track.clipSlots[_slotIdx];`,
-        `if (!_obj) throw new Error(\`ClipSlot \${_slotIdx} not found.\`);`,
-      ].join("\n      ") + "\n      ";
-      objectExpr = "_obj";
+    case 'ClipSlot': {
+      prefix =
+        [
+          `const _track = findTrack(song, ${a}["track_id"] as string);`,
+          `const _slotIdx = ${a}["slot_index"] as number;`,
+          `const _obj = _track.clipSlots[_slotIdx];`,
+          `if (!_obj) throw new Error(\`ClipSlot \${_slotIdx} not found.\`);`,
+        ].join('\n      ') + '\n      ';
+      objectExpr = '_obj';
       break;
     }
-    case "Clip": {
+    case 'Clip': {
       const idParam = contextParams[0];
       prefix = `const _obj = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "MidiClip": {
+    case 'MidiClip': {
       const idParam = contextParams[0];
       prefix = `const _baseClip = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseClip instanceof MidiClip)) throw new Error("Clip is not a MIDI clip.");\n      const _obj = _baseClip;\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "AudioClip": {
+    case 'AudioClip': {
       const idParam = contextParams[0];
       prefix = `const _baseClip = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseClip instanceof AudioClip)) throw new Error("Clip is not an Audio clip.");\n      const _obj = _baseClip;\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "Scene": {
+    case 'Scene': {
       const idParam = contextParams[0];
       prefix = `const _obj = findScene(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "Device": {
+    case 'Device': {
       const idParam = contextParams[0];
       prefix = `const _obj = findDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "DeviceParameter": {
+    case 'DeviceParameter': {
       const idParam = contextParams[0];
       prefix = `const _obj = findDeviceParameter(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "Simpler": {
+    case 'Simpler': {
       const idParam = contextParams[0];
       prefix = `const _rawDevice = findDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_rawDevice instanceof Simpler)) throw new Error("Device is not a Simpler");\n      const _obj = _rawDevice;\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "TakeLane": {
+    case 'TakeLane': {
       const idParam = contextParams[0];
       prefix = `const _obj = findTakeLane(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "CuePoint": {
+    case 'CuePoint': {
       const idParam = contextParams[0];
       prefix = `const _obj = findCuePoint(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "RackDevice": {
+    case 'RackDevice': {
       const idParam = contextParams[0];
       prefix = `const _obj = findRackDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
-    case "Chain": {
+    case 'Chain': {
       const idParam = contextParams[0];
       prefix = `const _obj = findChain(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
-      objectExpr = "_obj";
+      objectExpr = '_obj';
       break;
     }
     default:
@@ -820,30 +861,36 @@ function generateDispatchBody(tool: GeneratedTool): string {
   }
 
   // Build the method call
-  if (method.startsWith("set ")) {
+  if (method.startsWith('set ')) {
     const propName = method.slice(4);
     const valParam = params[0];
     // Always cast as `never` — the SDK type is correct at runtime; this is just a generator escape hatch
-    const valExpr = valParam ? `${a}[${JSON.stringify(valParam.name)}] as never` : "undefined as never";
+    const valExpr = valParam
+      ? `${a}[${JSON.stringify(valParam.name)}] as never`
+      : 'undefined as never';
     return `${prefix}${objectExpr}.${propName} = ${valExpr};\n      return { ok: true };`;
   }
 
-    const methodArgs = params
+  const methodArgs = params
     .map((p) => {
       if (p.isHandleRef) {
         // Resolve the handle and cast to the expected type
         return `findByHandleClass(song, "${p.handleClass}", ${a}[${JSON.stringify(p.name)}] as string) as never`;
       }
-      const cast = p.schema.type === "object" ? "never" : getTypecast(p.schema.type);
+      const cast = p.schema.type === 'object' ? 'never' : getTypecast(p.schema.type);
       return `${a}[${JSON.stringify(p.name)}] as ${cast}`;
     })
-    .join(", ");
+    .join(', ');
 
-  const isAsync = tool.returnDescription !== "void" && !tool.returnDescription.startsWith("void");
+  const isVoid = tool.returnDescription === 'void';
   const callExpr = `${objectExpr}.${method}(${methodArgs})`;
 
-  if (tool.returnDescription === "void" || tool.returnDescription.includes("void")) {
+  if (isVoid) {
     return `${prefix}${callExpr};\n      return { ok: true };`;
+  }
+
+  if (tool.returnDescription === 'Promise<void>') {
+    return `${prefix}await ${callExpr};\n      return { ok: true };`;
   }
 
   return `${prefix}const _result = await ${callExpr};\n      return serializeResult(_result);`;
@@ -851,11 +898,16 @@ function generateDispatchBody(tool: GeneratedTool): string {
 
 function getTypecast(schemaType: string): string {
   switch (schemaType) {
-    case "string": return "string";
-    case "number": return "number";
-    case "boolean": return "boolean";
-    case "array": return "unknown[]";
-    default: return "unknown";
+    case 'string':
+      return 'string';
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'array':
+      return 'unknown[]';
+    default:
+      return 'unknown';
   }
 }
 
