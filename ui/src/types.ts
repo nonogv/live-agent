@@ -23,6 +23,8 @@ export interface ChatMessage {
   toolCallId?: string;
   /** Whether this message is still being streamed. */
   streaming?: boolean;
+  /** Whether a tool message is collapsed to a one-liner. */
+  folded?: boolean;
 }
 
 /** A single model entry within a provider. */

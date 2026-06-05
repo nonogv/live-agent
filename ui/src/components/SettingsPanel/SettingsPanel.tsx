@@ -44,12 +44,12 @@ export function SettingsPanel({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-[18px]">
-      <div className="mb-[22px]">
-        <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-text-dim">
+    <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="mb-6">
+        <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
           API Keys
         </h2>
-        <p className="mb-3.5 text-[11px] leading-normal text-text-dim">
+        <p className="mb-4 text-[13px] leading-normal text-text-dim">
           Keys are stored locally in Live&apos;s extension storage and never leave your computer.
           Get keys from{' '}
           <a
@@ -90,12 +90,12 @@ export function SettingsPanel({
       </div>
 
       <button
-        className="w-full cursor-pointer rounded-default border-none bg-accent py-2 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover"
+        className="w-full cursor-pointer rounded-default border-none bg-accent py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-accent-hover"
         onClick={handleSave}
       >
         Save Settings
       </button>
-      <div className="mt-2 min-h-[18px] text-center text-[12px] text-[#6abf6a]">{feedback}</div>
+      <div className="mt-3 min-h-[20px] text-center text-[13px] text-[#6abf6a]">{feedback}</div>
     </div>
   );
 }

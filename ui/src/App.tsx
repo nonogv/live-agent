@@ -4,141 +4,13 @@ import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProviders } from './hooks/useProviders';
-import type {
-  ChatMessage,
-  ClientMessage,
-  ConfirmMode,
-  ServerMessage,
-  SettingsPayload,
-} from './types';
-
-// ── Chat state via useReducer ────────────────────────────────────────────────
-
-type ChatAction =
-  | { type: 'LOAD_HISTORY'; messages: Array<{ role: 'user' | 'agent'; content: string }> }
-  | { type: 'ADD_USER'; text: string }
-  | { type: 'STREAM_START' }
-  | { type: 'STREAM_CHUNK'; text: string }
-  | { type: 'STREAM_END' }
-  | { type: 'TOOL_START'; name: string; args: unknown }
-  | { type: 'CONFIRM_REQUEST'; toolCallId: string; toolName: string; args: unknown }
-  | { type: 'CONFIRM_RESPOND'; toolCallId: string }
-  | { type: 'ERROR'; message: string }
-  | { type: 'CLEAR' };
-
-interface ChatState {
-  messages: ChatMessage[];
-  streaming: boolean;
-}
-
-let msgId = 0;
-function nextId() {
-  return String(++msgId);
-}
-
-function chatReducer(state: ChatState, action: ChatAction): ChatState {
-  switch (action.type) {
-    case 'LOAD_HISTORY':
-      return {
-        ...state,
-        messages: action.messages.map((m) => ({
-          id: nextId(),
-          role: m.role,
-          content: m.content,
-        })),
-      };
-
-    case 'ADD_USER':
-      return {
-        ...state,
-        messages: [...state.messages, { id: nextId(), role: 'user', content: action.text }],
-      };
-
-    case 'STREAM_START':
-      return {
-        ...state,
-        streaming: true,
-        messages: [
-          ...state.messages,
-          { id: nextId(), role: 'agent', content: '', streaming: true },
-        ],
-      };
-
-    case 'STREAM_CHUNK': {
-      const msgs = [...state.messages];
-      const last = msgs[msgs.length - 1];
-      if (last?.streaming) {
-        msgs[msgs.length - 1] = { ...last, content: last.content + action.text };
-      } else {
-        // After a tool call in debug mode the last message is a TOOL card,
-        // not a streaming bubble — start a new agent bubble for the follow-up round.
-        msgs.push({ id: nextId(), role: 'agent', content: action.text, streaming: true });
-      }
-      return { ...state, streaming: true, messages: msgs };
-    }
-
-    case 'STREAM_END': {
-      const msgs = state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m));
-      return { ...state, streaming: false, messages: msgs };
-    }
-
-    case 'TOOL_START':
-      return {
-        ...state,
-        messages: [
-          ...state.messages,
-          {
-            id: nextId(),
-            role: 'tool',
-            content: '',
-            toolName: action.name,
-            toolArgs: action.args,
-          },
-        ],
-      };
-
-    case 'CONFIRM_REQUEST':
-      return {
-        ...state,
-        messages: [
-          ...state.messages,
-          {
-            id: `confirm-${action.toolCallId}`,
-            role: 'confirm',
-            content: '',
-            toolName: action.toolName,
-            toolArgs: action.args,
-            toolCallId: action.toolCallId,
-          },
-        ],
-      };
-
-    case 'CONFIRM_RESPOND':
-      return {
-        ...state,
-        messages: state.messages.filter((m) => m.toolCallId !== action.toolCallId),
-      };
-
-    case 'ERROR':
-      return {
-        ...state,
-        streaming: false,
-        messages: [...state.messages, { id: nextId(), role: 'error', content: action.message }],
-      };
-
-    case 'CLEAR':
-      return { messages: [], streaming: false };
-
-    default:
-      return state;
-  }
-}
-
-// ── App ──────────────────────────────────────────────────────────────────────
+import { chatReducer } from './chatReducer';
+import { toggleAppTab, type AppTab } from './appTab';
+import type { ClientMessage, ConfirmMode, ServerMessage, SettingsPayload } from './types';
 
 /** Root application component. Manages tab state and wires WebSocket to chat. */
 export function App() {
-  const [tab, setTab] = useState<'chat' | 'settings'>('chat');
+  const [tab, setTab] = useState<AppTab>('chat');
   const [debugMode, setDebugMode] = useState(false);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>('guard');
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
@@ -167,6 +39,7 @@ export function App() {
           break;
         case 'stream_end':
           dispatch({ type: 'STREAM_END' });
+          dispatch({ type: 'FOLD_TOOL_MESSAGES' });
           break;
         case 'tool_start':
           if (debugMode) dispatch({ type: 'TOOL_START', name: msg.name, args: msg.args });
@@ -239,6 +112,10 @@ export function App() {
     sendMsg({ type: 'confirm_response', confirmed, toolCallId });
   }
 
+  function handleToggleToolFold(id: string) {
+    dispatch({ type: 'TOGGLE_TOOL_FOLD', id });
+  }
+
   function handleSaveSettings(payload: { keys: Record<string, string> }) {
     sendMsg({ type: 'save_settings', ...payload });
   }
@@ -251,51 +128,16 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
-  function handleTabChange(t: 'chat' | 'settings') {
-    setTab(t);
-    if (t === 'settings') {
+  function handleToggleTab() {
+    const next = toggleAppTab(tab);
+    setTab(next);
+    if (next === 'settings') {
       setTimeout(() => sendMsg({ type: 'get_settings' }), 50);
     }
   }
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-3.5 py-2.5">
-        <div className="h-[18px] w-[18px] shrink-0 rounded-[3px] bg-accent" />
-        <h1 className="flex-1 text-[13px] font-semibold">Live Agent</h1>
-        <nav className="flex gap-0.5">
-          <button
-            className={`cursor-pointer rounded-default border-none px-2 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${tab === 'chat' ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
-            onClick={() => handleTabChange('chat')}
-          >
-            Chat
-          </button>
-          <button
-            className={`cursor-pointer rounded-default border-none px-2 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${tab === 'settings' ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
-            onClick={() => handleTabChange('settings')}
-          >
-            Settings
-          </button>
-        </nav>
-      </header>
-
-      {tab === 'chat' && (
-        <ProviderBar
-          providers={providers}
-          provider={provider}
-          model={model}
-          models={models}
-          debugMode={debugMode}
-          confirmMode={confirmMode}
-          onProviderChange={setProvider}
-          onModelChange={setModel}
-          onToggleDebug={handleToggleDebug}
-          onSetConfirmMode={handleSetConfirmMode}
-          onDiagnose={handleDiagnose}
-          onClear={handleClear}
-        />
-      )}
-
       {tab === 'chat' ? (
         <ChatPanel
           messages={chatState.messages}
@@ -303,6 +145,7 @@ export function App() {
           onSend={handleSend}
           onSuggestion={handleSuggestion}
           onConfirm={handleConfirm}
+          onToggleToolFold={handleToggleToolFold}
         />
       ) : (
         <SettingsPanel
@@ -313,6 +156,23 @@ export function App() {
           onOpenUrl={handleOpenUrl}
         />
       )}
+
+      <ProviderBar
+        tab={tab}
+        providers={providers}
+        provider={provider}
+        model={model}
+        models={models}
+        debugMode={debugMode}
+        confirmMode={confirmMode}
+        onProviderChange={setProvider}
+        onModelChange={setModel}
+        onToggleDebug={handleToggleDebug}
+        onSetConfirmMode={handleSetConfirmMode}
+        onDiagnose={handleDiagnose}
+        onClear={handleClear}
+        onToggleTab={handleToggleTab}
+      />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 @import 'tailwindcss/preflight.css';
 @import 'tailwindcss/utilities.css';
 
+@plugin "@tailwindcss/typography";
+
 /* Scan UI sources — required for @tailwindcss/vite content detection */
 @source '../src/**/*.{ts,tsx}';
 
@@ -48,7 +50,7 @@ body,
   background: var(--color-surface);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 @keyframes blink {
@@ -70,4 +72,19 @@ body,
 .messages-scroll::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 3px;
+}
+
+/** Shared body text for user bubbles and agent markdown (14px). */
+.chat-message-text {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-prose {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-prose :where(p, ul, ol, li, blockquote, td, th, code) {
+  font-size: 14px;
 }
