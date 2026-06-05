@@ -16,7 +16,7 @@ export const activate = (activation: ActivationContext): void => {
     // Register the "Open Live Agent" command
     context.commands.registerCommand('live-agent.open', () => {
       context.ui
-        .showModalDialog(`http://127.0.0.1:${server.port}/`, 440, 700)
+        .showModalDialog(`http://127.0.0.1:${server.port}/`, 480, 760)
         .catch((err: unknown) => {
           console.error('[Live Agent] Dialog error:', err);
         });
