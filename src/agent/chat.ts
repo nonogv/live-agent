@@ -189,13 +189,20 @@ function renderTrack(t: TrackInfo): string {
     .filter(Boolean)
     .join(',');
   const flagStr = flags ? ` [${flags}]` : '';
-  const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)}(id:${fmtId(t.mixer.volume.id)}) pan=${t.mixer.panning.value.toFixed(2)}(id:${fmtId(t.mixer.panning.id)})${t.mixer.sends.length ? ' sends:' + t.mixer.sends.map((s, i) => `[${i}]=${s.value.toFixed(2)}(id:${fmtId(s.id)})`).join(' ') : ''}`;
+  const sendStr = t.mixer.sends.length
+    ? ' sends:' + t.mixer.sends.map((s, i) => `[${i}]=${s.value.toFixed(2)}`).join(' ')
+    : '';
+  const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)}(id:${fmtId(t.mixer.volume.id)}) pan=${t.mixer.panning.value.toFixed(2)}(id:${fmtId(t.mixer.panning.id)})${sendStr}`;
   const devStr = t.devices.length ? '\n' + t.devices.map((d) => renderDevice(d)).join('\n') : '';
-  // Only show session clips (arrangement clips are less commonly edited via agent)
+  // Only show session clips in detail; arrangement clips are summarized by count.
   const clipStr = t.sessionClips.map((c) => renderClip(c, '      ')).join('\n');
+  const arrangementHint =
+    t.arrangementClips.length > 0
+      ? `\n      (${t.arrangementClips.length} arrangement clips — call get_live_state to read)`
+      : '';
   // Show take-lane count only; listing names/ids saved for when the LLM needs them
   const laneHint = t.takeLanes.length ? `\n      TakeLanes: ${t.takeLanes.length}` : '';
-  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${laneHint}`;
+  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${arrangementHint}${laneHint}`;
 }
 
 export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[]): string {
