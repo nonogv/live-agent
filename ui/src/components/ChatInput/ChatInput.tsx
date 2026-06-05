@@ -1,5 +1,4 @@
 import { useRef, type KeyboardEvent, type FormEvent } from 'react';
-import styles from './ChatInput.module.scss';
 
 interface ChatInputProps {
   disabled: boolean;
@@ -39,17 +38,22 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
   }
 
   return (
-    <div className={styles.inputBar}>
+    <div className="flex shrink-0 items-end gap-2 border-t border-border bg-surface px-3.5 py-2.5">
       <textarea
         ref={textareaRef}
-        className={styles.textarea}
+        className="min-h-9 max-h-[120px] flex-1 resize-none overflow-y-auto rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] leading-snug text-text outline-none placeholder:text-text-dim focus:outline focus:outline-1 focus:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
         placeholder="Message Live Agent…"
         rows={1}
         disabled={disabled}
         onKeyDown={onKeyDown}
         onInput={onInput}
       />
-      <button className={styles.sendBtn} onClick={submit} disabled={disabled} title="Send">
+      <button
+        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-default border-none bg-accent text-base text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-border"
+        onClick={submit}
+        disabled={disabled}
+        title="Send"
+      >
         ↑
       </button>
     </div>

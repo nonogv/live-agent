@@ -1,7 +1,6 @@
-import styles from './ChatPanel.module.scss';
-import { MessageList } from './MessageList';
-import { ChatInput } from './ChatInput';
-import type { ChatMessage } from '../types';
+import { MessageList } from '../MessageList';
+import { ChatInput } from '../ChatInput';
+import type { ChatMessage } from '../../types';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -20,7 +19,7 @@ export function ChatPanel({
   onConfirm,
 }: ChatPanelProps) {
   return (
-    <div className={styles.panel}>
+    <div className="flex flex-1 flex-col overflow-hidden">
       <MessageList messages={messages} onSuggestion={onSuggestion} onConfirm={onConfirm} />
       <ChatInput disabled={streaming} onSend={onSend} />
     </div>

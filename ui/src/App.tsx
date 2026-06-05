@@ -1,5 +1,4 @@
 import { useCallback, useReducer, useState } from 'react';
-import styles from './App.module.scss';
 import { ChatPanel } from './components/ChatPanel';
 import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -252,19 +251,19 @@ export function App() {
   }
 
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <div className={styles.logo} />
-        <h1 className={styles.title}>Live Agent</h1>
-        <nav className={styles.nav}>
+    <div className="flex h-screen flex-col">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-3.5 py-2.5">
+        <div className="h-[18px] w-[18px] shrink-0 rounded-[3px] bg-accent" />
+        <h1 className="flex-1 text-[13px] font-semibold">Live Agent</h1>
+        <nav className="flex gap-0.5">
           <button
-            className={`${styles.navBtn}${tab === 'chat' ? ` ${styles.active}` : ''}`}
+            className={`cursor-pointer rounded-default border-none px-2 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${tab === 'chat' ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
             onClick={() => handleTabChange('chat')}
           >
             Chat
           </button>
           <button
-            className={`${styles.navBtn}${tab === 'settings' ? ` ${styles.active}` : ''}`}
+            className={`cursor-pointer rounded-default border-none px-2 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${tab === 'settings' ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
             onClick={() => handleTabChange('settings')}
           >
             Settings

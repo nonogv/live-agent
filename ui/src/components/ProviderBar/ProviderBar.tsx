@@ -1,5 +1,4 @@
-import styles from './ProviderBar.module.scss';
-import type { ConfirmMode, ProvidersRegistry } from '../types';
+import type { ConfirmMode, ProvidersRegistry } from '../../types';
 
 const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
   { value: 'review', label: 'Review', title: 'Ask before every tool call' },
@@ -38,9 +37,9 @@ export function ProviderBar({
   onClear,
 }: ProviderBarProps) {
   return (
-    <div className={styles.modelBar}>
+    <div className="flex shrink-0 items-center gap-1.5 border-b border-border bg-surface px-3.5 py-[7px]">
       <select
-        className={styles.select}
+        className="cursor-pointer rounded-default border border-border bg-surface2 px-1.5 py-0.5 text-[12px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         value={provider}
         onChange={(e) => onProviderChange(e.target.value)}
       >
@@ -52,7 +51,7 @@ export function ProviderBar({
       </select>
 
       <select
-        className={styles.select}
+        className="cursor-pointer rounded-default border border-border bg-surface2 px-1.5 py-0.5 text-[12px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         value={model}
         onChange={(e) => onModelChange(e.target.value)}
       >
@@ -64,19 +63,22 @@ export function ProviderBar({
       </select>
 
       <button
-        className={`${styles.btn}${debugMode ? ` ${styles.active}` : ''}`}
+        className={`cursor-pointer rounded-default border-none px-1.5 py-0.5 text-[11px] transition-colors hover:bg-surface2 hover:text-text ${debugMode ? 'text-accent' : 'text-text-dim'}`}
         onClick={onToggleDebug}
         title="Show tool calls in chat"
       >
         Tools
       </button>
 
-      {/* Three-way confirm mode segmented control */}
-      <div className={styles.segmented} role="group" aria-label="Confirmation mode">
-        {CONFIRM_MODES.map(({ value, label, title }) => (
+      <div
+        className="flex shrink-0 overflow-hidden rounded-default border border-border"
+        role="group"
+        aria-label="Confirmation mode"
+      >
+        {CONFIRM_MODES.map(({ value, label, title }, index) => (
           <button
             key={value}
-            className={`${styles.seg}${confirmMode === value ? ` ${styles.active}` : ''}`}
+            className={`cursor-pointer border-none px-[7px] py-0.5 text-[11px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
             onClick={() => onSetConfirmMode(value)}
             title={title}
           >
@@ -85,12 +87,16 @@ export function ProviderBar({
         ))}
       </div>
 
-      <button className={styles.btn} onClick={onDiagnose} title="Run environment diagnostics">
+      <button
+        className="cursor-pointer rounded-default border-none px-1.5 py-0.5 text-[11px] text-text-dim transition-colors hover:bg-surface2 hover:text-text"
+        onClick={onDiagnose}
+        title="Run environment diagnostics"
+      >
         Diagnose
       </button>
 
       <button
-        className={`${styles.btn} ${styles.clearBtn}`}
+        className="ml-auto cursor-pointer rounded-default border-none px-1.5 py-0.5 text-[11px] text-text-dim transition-colors hover:bg-surface2 hover:text-text"
         onClick={onClear}
         title="Clear conversation"
       >

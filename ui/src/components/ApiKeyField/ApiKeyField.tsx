@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import styles from './ApiKeyField.module.scss';
 
 interface ApiKeyFieldProps {
   /** Provider id, e.g. "openai". */
@@ -23,20 +22,24 @@ export function ApiKeyField({ providerId, label, placeholder, isSet, onClear }: 
   }
 
   return (
-    <div className={styles.row}>
-      <div className={`${styles.dot} ${isSet ? styles.set : styles.unset}`} />
-      <label className={styles.label} htmlFor={`key-${providerId}`}>
+    <div className="mb-2.5 flex items-center gap-2">
+      <div className={`h-2 w-2 shrink-0 rounded-full ${isSet ? 'bg-[#6abf6a]' : 'bg-border'}`} />
+      <label className="flex-1 text-[12px]" htmlFor={`key-${providerId}`}>
         {label}
       </label>
       <input
         ref={inputRef}
         id={`key-${providerId}`}
-        className={styles.input}
+        className="flex-[2] rounded-default border border-border bg-surface2 px-2 py-1.5 text-[12px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         type="password"
         placeholder={isSet ? '••••••••' : placeholder}
         autoComplete="off"
       />
-      <button className={styles.clearBtn} onClick={handleClear} title="Clear key">
+      <button
+        className="shrink-0 cursor-pointer rounded-default border border-border px-[7px] py-0.5 text-[11px] text-text-dim hover:border-[#e05555] hover:text-[#e05555]"
+        onClick={handleClear}
+        title="Clear key"
+      >
         ✕
       </button>
     </div>
