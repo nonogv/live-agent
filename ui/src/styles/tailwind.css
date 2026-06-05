@@ -73,3 +73,18 @@ body,
   background: var(--color-border);
   border-radius: 3px;
 }
+
+/** Shared body text for user bubbles and agent markdown (14px). */
+.chat-message-text {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-prose {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-prose :where(p, ul, ol, li, blockquote, td, th, code) {
+  font-size: 14px;
+}

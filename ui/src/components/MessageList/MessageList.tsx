@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { MessageBubble } from '../MessageBubble';
 import { EmptyState } from '../EmptyState';
+import { messageTopMargin } from '../../messageSpacing';
 import type { ChatMessage } from '../../types';
 
 interface MessageListProps {
@@ -24,17 +25,14 @@ export function MessageList({
   }, [messages]);
 
   return (
-    <div className="messages-scroll flex flex-1 flex-col gap-3 overflow-y-auto px-8 py-6">
+    <div className="messages-scroll flex flex-1 flex-col overflow-y-auto px-8 py-6">
       {messages.length === 0 ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (
-        messages.map((m) => (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            onConfirm={onConfirm}
-            onToggleToolFold={onToggleToolFold}
-          />
+        messages.map((m, index) => (
+          <div key={m.id} className={messageTopMargin(index, messages)}>
+            <MessageBubble message={m} onConfirm={onConfirm} onToggleToolFold={onToggleToolFold} />
+          </div>
         ))
       )}
       <div ref={bottomRef} />

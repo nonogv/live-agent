@@ -48,7 +48,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
   if (role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-default bg-[#2a2a2a] px-3.5 py-2.5 leading-normal break-words">
+        <div className="chat-message-text max-w-[85%] rounded-default bg-[#2a2a2a] px-3.5 py-2.5 break-words">
           <div className="whitespace-pre-wrap">{content}</div>
         </div>
       </div>
@@ -57,13 +57,13 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
 
   if (role === 'agent') {
     return (
-      <div className="leading-normal break-words">
+      <div className="chat-message-text break-words">
         {streaming ? (
           <div className={`whitespace-pre-wrap${streaming ? ' streaming-cursor' : ''}`}>
             {content}
           </div>
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="chat-prose prose prose-invert max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
         )}

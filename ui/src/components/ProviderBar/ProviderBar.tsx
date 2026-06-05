@@ -49,7 +49,7 @@ export function ProviderBar({
   const ToggleIcon = panelToggle.icon === 'settings' ? Settings : MessageSquare;
 
   return (
-    <div className="flex shrink-0 items-center gap-2 overflow-hidden bg-surface px-3 py-3.5">
+    <div className="flex shrink-0 items-center gap-2 overflow-hidden bg-surface px-3 pt-1.5 pb-4.5">
       {tab === 'chat' && (
         <>
           <select
