@@ -2,9 +2,10 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ProvidersRegistry } from '../types';
 
 /** Static provider/model registry. */
-const PROVIDERS: ProvidersRegistry = {
+export const PROVIDERS: ProvidersRegistry = {
   openai: {
     label: 'OpenAI',
+    default: 'gpt-5.4-mini',
     models: [
       { id: 'gpt-5.5', label: 'GPT-5.5' },
       { id: 'gpt-5.5-pro', label: 'GPT-5.5 Pro' },
@@ -16,6 +17,7 @@ const PROVIDERS: ProvidersRegistry = {
   },
   anthropic: {
     label: 'Anthropic',
+    default: 'claude-haiku-4-5',
     models: [
       { id: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
@@ -24,6 +26,7 @@ const PROVIDERS: ProvidersRegistry = {
   },
   gemini: {
     label: 'Google Gemini',
+    default: 'gemini-3.1-flash-lite',
     models: [
       { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' },
       { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (preview)' },
@@ -31,6 +34,33 @@ const PROVIDERS: ProvidersRegistry = {
     ],
   },
 };
+
+const FALLBACK_PROVIDER = 'gemini';
+
+/**
+ * Returns the default model id for a provider, or an empty string when unknown.
+ * @param providerId - Provider key from {@link PROVIDERS}.
+ */
+export function getProviderDefaultModel(providerId: string): string {
+  return PROVIDERS[providerId]?.default ?? '';
+}
+
+/**
+ * Resolves provider/model from persisted last-used values with free-tier defaults.
+ * @param lastProvider - Persisted provider id, if any.
+ * @param lastModel - Persisted model id, if any.
+ */
+export function resolveProviderChoice(
+  lastProvider?: string,
+  lastModel?: string,
+): { provider: string; model: string } {
+  const provider = lastProvider ?? FALLBACK_PROVIDER;
+  const providerModels = PROVIDERS[provider]?.models ?? [];
+  const defaultModel = getProviderDefaultModel(provider);
+  const model =
+    lastModel && providerModels.some((entry) => entry.id === lastModel) ? lastModel : defaultModel;
+  return { provider, model };
+}
 
 export interface UseProvidersReturn {
   providers: ProvidersRegistry;
@@ -45,14 +75,14 @@ export interface UseProvidersReturn {
 
 /**
  * Manages the currently selected provider and model.
- * When the provider changes the model resets to the first available unless
+ * When the provider changes the model resets to that provider's default unless
  * a persisted lastModel is supplied via initFromLastChoice.
  */
 export function useProviders(
   onChoiceChange?: (provider: string, model: string) => void,
 ): UseProvidersReturn {
-  const [provider, setProviderRaw] = useState('anthropic');
-  const [model, setModelRaw] = useState(PROVIDERS.anthropic.models[0].id);
+  const [provider, setProviderRaw] = useState(FALLBACK_PROVIDER);
+  const [model, setModelRaw] = useState(getProviderDefaultModel(FALLBACK_PROVIDER));
 
   const models = useMemo(() => PROVIDERS[provider]?.models ?? [], [provider]);
 
@@ -64,22 +94,17 @@ export function useProviders(
   );
 
   const initFromLastChoice = useCallback((lastProvider?: string, lastModel?: string) => {
-    const p = lastProvider ?? 'anthropic';
-    const providerModels = PROVIDERS[p]?.models ?? [];
-    const m =
-      lastModel && providerModels.some((entry) => entry.id === lastModel)
-        ? lastModel
-        : (providerModels[0]?.id ?? '');
-    setProviderRaw(p);
-    setModelRaw(m);
+    const resolved = resolveProviderChoice(lastProvider, lastModel);
+    setProviderRaw(resolved.provider);
+    setModelRaw(resolved.model);
   }, []);
 
   const setProvider = useCallback(
     (p: string) => {
-      const firstModel = PROVIDERS[p]?.models[0]?.id ?? '';
+      const defaultModel = getProviderDefaultModel(p);
       setProviderRaw(p);
-      setModelRaw(firstModel);
-      notifyChange(p, firstModel);
+      setModelRaw(defaultModel);
+      notifyChange(p, defaultModel);
     },
     [notifyChange],
   );

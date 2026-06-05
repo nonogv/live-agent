@@ -78,9 +78,9 @@ describe('Storage — persistence', () => {
 });
 
 describe('Storage — last provider/model', () => {
-  it('returns anthropic and empty model when unset', () => {
+  it('returns gemini and empty model when unset', () => {
     const s = makeStorage();
-    expect(s.getLastProvider()).toBe('anthropic');
+    expect(s.getLastProvider()).toBe('gemini');
     expect(s.getLastModel()).toBe('');
   });
 

@@ -96,9 +96,9 @@ export class Storage {
     this.save();
   }
 
-  /** Returns the last-used provider, defaulting to anthropic when unset. */
+  /** Returns the last-used provider, defaulting to gemini when unset. */
   getLastProvider(): string {
-    return this.data.lastProvider ?? 'anthropic';
+    return this.data.lastProvider ?? 'gemini';
   }
 
   /** Returns the last-used model, or an empty string when unset. */

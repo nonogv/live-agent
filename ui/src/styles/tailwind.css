@@ -65,6 +65,20 @@ body,
   color: var(--color-accent);
 }
 
+@keyframes error-pulse {
+  0%,
+  100% {
+    background-color: rgb(69 10 10 / 0.3);
+  }
+  50% {
+    background-color: rgb(127 29 29 / 0.45);
+  }
+}
+
+.error-pulse {
+  animation: error-pulse 0.8s ease-in-out 3;
+}
+
 .messages-scroll::-webkit-scrollbar {
   width: 5px;
 }

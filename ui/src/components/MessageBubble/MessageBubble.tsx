@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Check, X } from 'lucide-react';
+import { Check, Info, X } from 'lucide-react';
 import type { ChatMessage } from '../../types';
 
 interface MessageBubbleProps {
@@ -98,7 +98,24 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
   }
 
   if (role === 'error') {
-    return <div className="text-red-400 leading-normal break-words">{content}</div>;
+    return (
+      <div className="error-pulse rounded-default border-l-2 border-red-400/60 bg-red-950/30 px-3 py-2 text-red-400 leading-normal break-words">
+        {content}
+      </div>
+    );
+  }
+
+  if (role === 'diagnostic') {
+    return (
+      <div className="flex gap-2 rounded-default border-l-2 border-sky-500/60 bg-sky-900/40 px-3 py-2 font-mono text-[12px] leading-relaxed text-sky-100/90">
+        <Info size={14} className="mt-0.5 shrink-0 text-sky-400" aria-hidden />
+        <div
+          className={`min-w-0 flex-1 whitespace-pre-wrap break-words${streaming ? ' streaming-cursor' : ''}`}
+        >
+          {content}
+        </div>
+      </div>
+    );
   }
 
   return <div className="leading-normal break-words">{content}</div>;

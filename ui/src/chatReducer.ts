@@ -5,6 +5,7 @@ export type ChatAction =
   | { type: 'LOAD_HISTORY'; messages: Array<{ role: 'user' | 'agent'; content: string }> }
   | { type: 'ADD_USER'; text: string }
   | { type: 'STREAM_START' }
+  | { type: 'DIAGNOSTIC_START' }
   | { type: 'STREAM_CHUNK'; text: string }
   | { type: 'STREAM_END' }
   | { type: 'FOLD_TOOL_MESSAGES' }
@@ -13,6 +14,7 @@ export type ChatAction =
   | { type: 'CONFIRM_REQUEST'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'CONFIRM_RESPOND'; toolCallId: string }
   | { type: 'ERROR'; message: string }
+  | { type: 'SET_TOOL_VISIBILITY'; visible: boolean }
   | { type: 'CLEAR' };
 
 /** Chat panel state managed by {@link chatReducer}. */
@@ -61,6 +63,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         messages: [
           ...state.messages,
           { id: nextId(), role: 'agent', content: '', streaming: true },
+        ],
+      };
+
+    case 'DIAGNOSTIC_START':
+      return {
+        ...state,
+        streaming: true,
+        messages: [
+          ...state.messages,
+          { id: nextId(), role: 'diagnostic', content: '', streaming: true },
         ],
       };
 
@@ -129,11 +141,21 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         messages: state.messages.filter((m) => m.toolCallId !== action.toolCallId),
       };
 
-    case 'ERROR':
+    case 'ERROR': {
+      const msgs = state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m));
       return {
         ...state,
         streaming: false,
-        messages: [...state.messages, { id: nextId(), role: 'error', content: action.message }],
+        messages: [...msgs, { id: nextId(), role: 'error', content: action.message }],
+      };
+    }
+
+    case 'SET_TOOL_VISIBILITY':
+      return {
+        ...state,
+        messages: state.messages.map((m) =>
+          m.role === 'tool' ? { ...m, hidden: !action.visible } : m,
+        ),
       };
 
     case 'CLEAR':

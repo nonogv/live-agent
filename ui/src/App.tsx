@@ -17,6 +17,7 @@ export function App() {
   const [chatState, dispatch] = useReducer(chatReducer, { messages: [], streaming: false });
 
   const sendRef = useRef<(msg: ClientMessage) => void>(() => {});
+  const expectDiagnosticStreamRef = useRef(false);
 
   const handleChoiceChange = useCallback((nextProvider: string, nextModel: string) => {
     sendRef.current({ type: 'set_active_choice', provider: nextProvider, model: nextModel });
@@ -32,7 +33,12 @@ export function App() {
           sendMsg({ type: 'get_settings' });
           break;
         case 'stream_start':
-          dispatch({ type: 'STREAM_START' });
+          if (expectDiagnosticStreamRef.current) {
+            expectDiagnosticStreamRef.current = false;
+            dispatch({ type: 'DIAGNOSTIC_START' });
+          } else {
+            dispatch({ type: 'STREAM_START' });
+          }
           break;
         case 'stream_chunk':
           dispatch({ type: 'STREAM_CHUNK', text: msg.text });
@@ -94,12 +100,16 @@ export function App() {
   }
 
   function handleDiagnose() {
-    dispatch({ type: 'STREAM_START' });
+    expectDiagnosticStreamRef.current = true;
     sendMsg({ type: 'debug', provider, model });
   }
 
   function handleToggleDebug() {
-    setDebugMode((d) => !d);
+    setDebugMode((prev) => {
+      const next = !prev;
+      dispatch({ type: 'SET_TOOL_VISIBILITY', visible: next });
+      return next;
+    });
   }
 
   function handleSetConfirmMode(mode: ConfirmMode) {
@@ -128,6 +138,10 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
+  function handleCloseSettings() {
+    setTab('chat');
+  }
+
   function handleToggleTab() {
     const next = toggleAppTab(tab);
     setTab(next);
@@ -138,7 +152,7 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col">
-      {tab === 'chat' ? (
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <ChatPanel
           messages={chatState.messages}
           streaming={chatState.streaming}
@@ -147,15 +161,28 @@ export function App() {
           onConfirm={handleConfirm}
           onToggleToolFold={handleToggleToolFold}
         />
-      ) : (
-        <SettingsPanel
-          providers={providers}
-          settings={settings}
-          onSave={handleSaveSettings}
-          onClearKey={handleClearKey}
-          onOpenUrl={handleOpenUrl}
-        />
-      )}
+
+        {tab === 'settings' && (
+          <>
+            <button
+              type="button"
+              className="absolute inset-0 z-10 cursor-default border-none bg-black/50 p-0"
+              onClick={handleCloseSettings}
+              aria-label="Close settings"
+            />
+            <div className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-surface shadow-lg">
+              <SettingsPanel
+                providers={providers}
+                settings={settings}
+                onSave={handleSaveSettings}
+                onClearKey={handleClearKey}
+                onOpenUrl={handleOpenUrl}
+                onClose={handleCloseSettings}
+              />
+            </div>
+          </>
+        )}
+      </div>
 
       <ProviderBar
         tab={tab}

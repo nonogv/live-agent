@@ -46,6 +46,51 @@ describe('chatReducer', () => {
     expect(folded.messages[0].folded).toBe(true);
   });
 
+  it('ERROR clears streaming on in-progress messages and stops global streaming', () => {
+    const state = {
+      messages: [
+        { id: '1', role: 'user' as const, content: 'hi' },
+        { id: '2', role: 'agent' as const, content: 'partial', streaming: true },
+      ],
+      streaming: true,
+    };
+
+    const next = chatReducer(state, { type: 'ERROR', message: 'Rate limit exceeded' });
+
+    expect(next.streaming).toBe(false);
+    expect(next.messages[1].streaming).toBe(false);
+    expect(next.messages[2]).toMatchObject({ role: 'error', content: 'Rate limit exceeded' });
+  });
+
+  it('SET_TOOL_VISIBILITY toggles hidden on tool messages only', () => {
+    const state = {
+      messages: [
+        { id: '1', role: 'user' as const, content: 'hi' },
+        { id: '2', role: 'tool' as const, content: '', toolName: 'foo' },
+        { id: '3', role: 'agent' as const, content: 'ok' },
+      ],
+      streaming: false,
+    };
+
+    const hidden = chatReducer(state, { type: 'SET_TOOL_VISIBILITY', visible: false });
+    expect(hidden.messages[1].hidden).toBe(true);
+    expect(hidden.messages[0].hidden).toBeUndefined();
+
+    const visible = chatReducer(hidden, { type: 'SET_TOOL_VISIBILITY', visible: true });
+    expect(visible.messages[1].hidden).toBe(false);
+  });
+
+  it('DIAGNOSTIC_START creates a streaming diagnostic message', () => {
+    const next = chatReducer({ messages: [], streaming: false }, { type: 'DIAGNOSTIC_START' });
+
+    expect(next.streaming).toBe(true);
+    expect(next.messages[0]).toMatchObject({
+      role: 'diagnostic',
+      content: '',
+      streaming: true,
+    });
+  });
+
   it('STREAM_END clears streaming flag without folding tools', () => {
     const state = {
       messages: [
