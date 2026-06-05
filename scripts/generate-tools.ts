@@ -45,7 +45,7 @@ const SDK_OBJECT_CLASSES = new Set([
 ]);
 
 // ─── Classes to extract tools from (in order) ────────────────────────────────
-const TARGET_CLASSES = [
+export const TARGET_CLASSES = [
   'Song',
   'Track',
   'MidiTrack',
@@ -61,8 +61,30 @@ const TARGET_CLASSES = [
   'Simpler',
   'RackDevice',
   'Chain',
+  'DrumChain',
   'TakeLane',
-];
+] as const;
+
+/**
+ * SDK classes with public API that are intentionally not tool-generated.
+ * DrumRack inherits RackDevice tools (insertChain, etc.).
+ */
+export const EXCLUDED_SDK_CLASSES: Record<string, string> = {
+  Application: 'Song is available from extension context — no separate tool needed',
+  Commands: 'Extension command registration — not session control',
+  Environment: 'Filesystem paths and locale — not music production',
+  Resources: 'renderPreFxAudio / importIntoProject — future custom tools',
+  Ui: 'Extension UI (dialogs, context menus) — not agent-controllable',
+  DataModelObject: 'Base class — parent getter is navigational only',
+  ChainMixer: 'Exposed via track/chain mixer parameters in get_live_state',
+  TrackMixer: 'Exposed via track mixer parameters in get_live_state',
+  Sample: 'Exposed via Simpler.sample in get_live_state',
+  DrumRack: 'Methods inherited from RackDevice; chains are DrumChain instances',
+  DataModelObjectRegistry: 'Internal handle cache',
+};
+
+/** Individual SDK members excluded from tool generation despite being on a TARGET_CLASS. */
+export const EXCLUDED_SDK_MEMBERS: Record<string, string> = {};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,7 +106,7 @@ interface ToolParam {
   handleClass: string; // e.g. "Track"
 }
 
-interface GeneratedTool {
+export interface GeneratedTool {
   name: string; // e.g. song_createMidiTrack
   description: string;
   targetClass: string; // e.g. "Song"
@@ -95,9 +117,27 @@ interface GeneratedTool {
   contextParams: ToolParam[]; // e.g. track_id to locate the object
 }
 
+/**
+ * Discovers all tools that should be generated from the current SDK types.
+ */
+export function discoverToolsFromSdk(): GeneratedTool[] {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  const sourceFile = project.addSourceFileAtPath(SDK_TYPES);
+  const tools: GeneratedTool[] = [];
+
+  for (const targetClassName of TARGET_CLASSES) {
+    const cls = sourceFile.getClass(targetClassName);
+    if (!cls) continue;
+    tools.push(...extractMethods(cls, targetClassName));
+    tools.push(...extractSetters(cls, targetClassName));
+  }
+
+  return tools;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-function main() {
+async function main() {
   console.log('Reading SDK types from', SDK_TYPES);
 
   const project = new Project({ skipAddingFilesFromTsConfig: true });
@@ -115,12 +155,7 @@ function main() {
     const classMethods = extractMethods(cls, targetClassName);
     tools.push(...classMethods);
     console.log(`  ✓ ${targetClassName}: ${classMethods.length} tools`);
-  }
 
-  // Also extract settable properties as set_* tools
-  for (const targetClassName of TARGET_CLASSES) {
-    const cls = sourceFile.getClass(targetClassName);
-    if (!cls) continue;
     const setters = extractSetters(cls, targetClassName);
     tools.push(...setters);
     if (setters.length > 0) {
@@ -129,6 +164,9 @@ function main() {
   }
 
   console.log(`\nTotal tools generated: ${tools.length}`);
+
+  const { formatCoverageSummary } = await import('./sdk-coverage.ts');
+  console.log('\n' + formatCoverageSummary(tools));
 
   writeToolSchemas(tools);
   writeExecutor(tools);
@@ -496,6 +534,7 @@ function getContextParams(className: string): ToolParam[] {
     case 'Simpler':
     case 'RackDevice':
     case 'Chain':
+    case 'DrumChain':
       return [
         {
           name: `${toSnakeCase(className)}_id`,
@@ -523,7 +562,7 @@ function findSdkClass(typeName: string): string | null {
   return null;
 }
 
-function toSnakeCase(str: string): string {
+export function toSnakeCase(str: string): string {
   return str
     .replace(/([A-Z])/g, '_$1')
     .toLowerCase()
@@ -604,7 +643,7 @@ function writeExecutor(tools: GeneratedTool[]) {
     `// Generated at: ${new Date().toISOString()}`,
     ``,
     `import {`,
-    `  MidiTrack, AudioTrack, MidiClip, AudioClip, ClipSlot, Device, DeviceParameter, Simpler, TakeLane, RackDevice,`,
+    `  MidiTrack, AudioTrack, MidiClip, AudioClip, ClipSlot, Device, DeviceParameter, Simpler, TakeLane, RackDevice, DrumChain,`,
     `  type Song,`,
     `} from "@ableton-extensions/sdk";`,
     `import { resolveHandle } from "./handle-registry.js";`,
@@ -882,6 +921,12 @@ function generateDispatchBody(tool: GeneratedTool): string {
       objectExpr = '_obj';
       break;
     }
+    case 'DrumChain': {
+      const idParam = contextParams[0];
+      prefix = `const _rawChain = findChain(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      if (!(_rawChain instanceof DrumChain)) throw new Error("Chain is not a DrumChain.");\n      const _obj = _rawChain;\n      `;
+      objectExpr = '_obj';
+      break;
+    }
     default:
       return `throw new Error("Unimplemented target class: ${targetClass}");`;
   }
@@ -908,18 +953,25 @@ function generateDispatchBody(tool: GeneratedTool): string {
     })
     .join(', ');
 
-  const isVoid = tool.returnDescription === 'void';
+  const isSyncVoid = tool.returnDescription === 'void';
+  const isAsyncVoid = tool.returnDescription === 'Promise<void>';
+  const isPromise = tool.returnDescription.startsWith('Promise<');
   const callExpr = `${objectExpr}.${method}(${methodArgs})`;
 
-  if (isVoid) {
+  if (isSyncVoid) {
     return `${prefix}${callExpr};\n      return { ok: true };`;
   }
 
-  if (tool.returnDescription === 'Promise<void>') {
+  if (isAsyncVoid) {
     return `${prefix}await ${callExpr};\n      return { ok: true };`;
   }
 
-  return `${prefix}const _result = await ${callExpr};\n      return serializeResult(_result);`;
+  if (isPromise) {
+    return `${prefix}const _result = await ${callExpr};\n      return serializeResult(_result);`;
+  }
+
+  // Sync return value (non-Promise) — rare in the SDK but handled for robustness
+  return `${prefix}const _result = ${callExpr};\n      return serializeResult(_result);`;
 }
 
 function getTypecast(schemaType: string): string {
@@ -939,4 +991,9 @@ function getTypecast(schemaType: string): string {
 
 // ─── Run ──────────────────────────────────────────────────────────────────────
 
-main();
+const isCliEntry =
+  process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isCliEntry) {
+  void main();
+}

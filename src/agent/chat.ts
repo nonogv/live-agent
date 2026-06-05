@@ -9,12 +9,24 @@ export interface NoteInfo {
   velocity: number;
 }
 
+export interface WarpMarkerInfo {
+  sampleTime: number;
+  beatTime: number;
+}
+
 export interface ClipInfo {
   id: string;
   name: string;
   slotIndex: number; // -1 for arrangement clips
+  startTime: number;
+  endTime: number;
   duration: number;
+  startMarker: number;
+  endMarker: number;
   looping: boolean;
+  loopStart: number;
+  loopEnd: number;
+  color: number;
   muted: boolean;
   /** Absolute path to the audio file (AudioClip only). */
   filePath?: string;
@@ -22,6 +34,8 @@ export interface ClipInfo {
   warping?: boolean;
   /** WarpMode enum value: 0=Beats, 1=Tones, 2=Texture, 3=Re-Pitch, 4=Complex, 6=ComplexPro (AudioClip only). */
   warpMode?: number;
+  /** Warp markers (AudioClip only). */
+  warpMarkers?: WarpMarkerInfo[];
   notes?: NoteInfo[];
 }
 
@@ -36,8 +50,16 @@ export interface DeviceInfo {
     min: number;
     max: number;
     defaultValue: number;
+    isQuantized: boolean;
+    valueItems?: Array<{ name: string; shortName: string }>;
   }>;
-  chains?: Array<{ id: string; name: string; devices: DeviceInfo[] }>;
+  chains?: Array<{
+    id: string;
+    name: string;
+    /** MIDI note number for Drum Rack chains (DrumChain only). */
+    receivingNote?: number;
+    devices: DeviceInfo[];
+  }>;
 }
 
 export interface MixerInfo {
@@ -46,18 +68,27 @@ export interface MixerInfo {
   sends: Array<{ id: string; value: number }>;
 }
 
+export interface TakeLaneInfo {
+  id: string;
+  name: string;
+  clips: Array<{ id: string; name: string; duration: number }>;
+}
+
 export interface TrackInfo {
   id: string;
   name: string;
   type: 'midi' | 'audio' | 'return';
   mute: boolean;
   solo: boolean;
+  mutedViaSolo: boolean;
   arm: boolean;
+  /** Handle id of the parent group track, if any. */
+  groupTrackId: string | null;
   mixer: MixerInfo;
   devices: DeviceInfo[];
   sessionClips: ClipInfo[];
   arrangementClips: ClipInfo[];
-  takeLanes: Array<{ id: string; name: string }>;
+  takeLanes: TakeLaneInfo[];
 }
 
 export interface LiveState {
@@ -70,10 +101,20 @@ export interface LiveState {
   scaleMode: boolean;
   /** Semitone intervals of the current scale relative to rootNote. */
   scaleIntervals: number[];
+  /** GridQuantization enum value (0=NoGrid … 9=ThirtySecond). */
+  gridQuantization: number;
+  /** Whether the arrangement grid uses triplet subdivisions. */
+  gridIsTriplet: boolean;
   trackCount: number;
   tracks: TrackInfo[];
   mainTrack: { id: string; mixer: MixerInfo };
-  scenes: Array<{ id: string; name: string; tempo: number }>;
+  scenes: Array<{
+    id: string;
+    name: string;
+    tempo: number;
+    signatureNumerator: number;
+    signatureDenominator: number;
+  }>;
   cuePoints: Array<{ id: string; name: string; time: number }>;
 }
 

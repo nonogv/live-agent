@@ -1,5 +1,6 @@
 import {
   AudioClip,
+  DrumChain,
   MidiClip,
   MidiTrack,
   RackDevice,
@@ -26,6 +27,10 @@ async function readDevices(devices: Song<'1.0.0'>['tracks'][0]['devices']): Prom
             min: p.min,
             max: p.max,
             defaultValue: p.defaultValue,
+            isQuantized: p.isQuantized,
+            valueItems: p.isQuantized
+              ? p.valueItems.map((item) => ({ name: item.name, shortName: item.shortName }))
+              : undefined,
           })),
         ),
         chains:
@@ -34,6 +39,7 @@ async function readDevices(devices: Song<'1.0.0'>['tracks'][0]['devices']): Prom
                 d.chains.map(async (c, ci) => ({
                   id: reg(c.handle.id.toString()),
                   name: `Chain ${ci + 1}`,
+                  receivingNote: c instanceof DrumChain ? c.receivingNote : undefined,
                   devices: await readDevices(c.devices),
                 })),
               )
@@ -52,8 +58,15 @@ function buildClipInfo(
     id: reg(clip.handle.id.toString()),
     name: clip.name,
     slotIndex,
+    startTime: clip.startTime,
+    endTime: clip.endTime,
     duration: clip.duration,
+    startMarker: clip.startMarker,
+    endMarker: clip.endMarker,
     looping: clip.looping,
+    loopStart: clip.loopStart,
+    loopEnd: clip.loopEnd,
+    color: clip.color,
     muted: clip.muted,
     notes:
       clip instanceof MidiClip
@@ -69,6 +82,10 @@ function buildClipInfo(
     info.filePath = clip.filePath;
     info.warping = clip.warping;
     info.warpMode = clip.warpMode;
+    info.warpMarkers = clip.warpMarkers.map((m) => ({
+      sampleTime: m.sampleTime,
+      beatTime: m.beatTime,
+    }));
   }
   return info;
 }
@@ -119,12 +136,22 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
     type,
     mute: t.mute,
     solo: t.solo,
+    mutedViaSolo: t.mutedViaSolo,
     arm: t.arm,
+    groupTrackId: t.groupTrack ? reg(t.groupTrack.handle.id.toString()) : null,
     mixer: await readMixer(t.mixer),
     devices: await readDevices(t.devices),
     sessionClips: readClips(t.clipSlots),
     arrangementClips: readArrangementClips(t.arrangementClips),
-    takeLanes: t.takeLanes.map((tl) => ({ id: reg(tl.handle.id.toString()), name: tl.name })),
+    takeLanes: t.takeLanes.map((tl) => ({
+      id: reg(tl.handle.id.toString()),
+      name: tl.name,
+      clips: tl.clips.map((c) => ({
+        id: reg(c.handle.id.toString()),
+        name: c.name,
+        duration: c.duration,
+      })),
+    })),
   });
 
   const [regularTracks, returnTracks] = await Promise.all([
@@ -140,6 +167,8 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
     scaleName: song.scaleName,
     scaleMode: song.scaleMode,
     scaleIntervals: song.scaleIntervals,
+    gridQuantization: song.gridQuantization,
+    gridIsTriplet: song.gridIsTriplet,
     trackCount: song.tracks.length,
     tracks: [...regularTracks, ...returnTracks],
     mainTrack: {
@@ -150,6 +179,8 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
       id: reg(s.handle.id.toString()),
       name: s.name,
       tempo: s.tempo,
+      signatureNumerator: s.signatureNumerator,
+      signatureDenominator: s.signatureDenominator,
     })),
     cuePoints: song.cuePoints.map((cp) => ({
       id: reg(cp.handle.id.toString()),
