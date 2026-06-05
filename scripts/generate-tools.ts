@@ -165,7 +165,7 @@ async function main() {
 
   console.log(`\nTotal tools generated: ${tools.length}`);
 
-  const { formatCoverageSummary } = await import('./sdk-coverage.ts');
+  const { formatCoverageSummary } = await import('./sdk-coverage.js');
   console.log('\n' + formatCoverageSummary(tools));
 
   writeToolSchemas(tools);
