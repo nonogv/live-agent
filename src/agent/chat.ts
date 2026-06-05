@@ -118,41 +118,29 @@ function renderTool(schema: ToolSchema): string {
 }
 
 function renderDevice(d: DeviceInfo, indent = '      '): string {
-  const paramStr = d.parameters
-    .map((p) => `${indent}  - ${p.name} (id:${fmtId(p.id)}) = ${p.value} [${p.min}–${p.max}]`)
-    .join('\n');
-  const sampleStr = d.samplePath ? `\n${indent}  sample: ${d.samplePath}` : '';
+  // Keep device names + ids; omit individual parameter values to save tokens.
+  // The LLM can call get_live_state when it needs exact parameter ids/values.
+  const sampleStr = d.samplePath ? ` [sample: ${d.samplePath}]` : '';
   const chainStr =
     d.chains && d.chains.length > 0
-      ? '\n' +
-        d.chains
-          .map((c) => {
-            const chainDevices = c.devices
-              .map((cd) => renderDevice(cd, indent + '    '))
-              .join('\n');
-            return `${indent}  Chain "${c.name}" (id:${fmtId(c.id)})${chainDevices ? '\n' + chainDevices : ''}`;
-          })
-          .join('\n')
+      ? ' chains: ' + d.chains.map((c) => `"${c.name}"(id:${fmtId(c.id)})`).join(', ')
       : '';
-  return `${indent}Device: "${d.name}" (id:${fmtId(d.id)})${sampleStr}${paramStr ? '\n' + paramStr : ''}${chainStr}`;
+  return `${indent}Device: "${d.name}" (id:${fmtId(d.id)})${sampleStr}${chainStr}`;
 }
 
 function renderClip(c: ClipInfo, indent: string): string {
   const flags = [c.looping ? 'loop' : '', c.muted ? 'muted' : ''].filter(Boolean).join(',');
   const flagStr = flags ? ` [${flags}]` : '';
   const label = c.slotIndex >= 0 ? `Clip[${c.slotIndex}]` : `ArrangementClip`;
-  const noteStr =
-    c.notes && c.notes.length > 0
-      ? `\n${indent}  Notes: ` +
-        c.notes
-          .map((n) => `p:${n.pitch} t:${n.startTime} d:${n.duration} v:${n.velocity}`)
-          .join(', ')
-      : '';
+  // Omit note-by-note data from the overview — notes can be huge and the LLM
+  // can call get_live_state when it needs them for editing.
+  const noteHint =
+    c.notes && c.notes.length > 0 ? ` (${c.notes.length} notes — call get_live_state to read)` : '';
   const audioStr =
     c.filePath !== undefined
-      ? `\n${indent}  Audio: ${c.filePath}${c.warping !== undefined ? ` warp:${c.warping}` : ''}${c.warpMode !== undefined ? ` warpMode:${c.warpMode}` : ''}`
+      ? ` audio:${c.filePath.split('/').pop()}${c.warpMode !== undefined ? ` warpMode:${c.warpMode}` : ''}`
       : '';
-  return `${indent}${label}: "${c.name}" (id:${fmtId(c.id)}) — ${c.duration} beats${flagStr}${noteStr}${audioStr}`;
+  return `${indent}${label}: "${c.name}" (id:${fmtId(c.id)}) — ${c.duration} beats${flagStr}${noteHint}${audioStr}`;
 }
 
 function renderTrack(t: TrackInfo): string {
@@ -160,17 +148,13 @@ function renderTrack(t: TrackInfo): string {
     .filter(Boolean)
     .join(',');
   const flagStr = flags ? ` [${flags}]` : '';
-  const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)} (id:${fmtId(t.mixer.volume.id)}) pan=${t.mixer.panning.value.toFixed(2)} (id:${fmtId(t.mixer.panning.id)})${t.mixer.sends.length ? ' sends:' + t.mixer.sends.map((s, i) => `[${i}]=${s.value.toFixed(2)}(id:${fmtId(s.id)})`).join(' ') : ''}`;
+  const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)}(id:${fmtId(t.mixer.volume.id)}) pan=${t.mixer.panning.value.toFixed(2)}(id:${fmtId(t.mixer.panning.id)})${t.mixer.sends.length ? ' sends:' + t.mixer.sends.map((s, i) => `[${i}]=${s.value.toFixed(2)}(id:${fmtId(s.id)})`).join(' ') : ''}`;
   const devStr = t.devices.length ? '\n' + t.devices.map((d) => renderDevice(d)).join('\n') : '';
-  const clipStr = [
-    ...t.sessionClips.map((c) => renderClip(c, '      ')),
-    ...t.arrangementClips.map((c) => renderClip(c, '      ')),
-  ].join('\n');
-  const laneStr = t.takeLanes.length
-    ? '\n      TakeLanes: ' +
-      t.takeLanes.map((tl) => `"${tl.name}" (id:${fmtId(tl.id)})`).join(', ')
-    : '';
-  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${laneStr}`;
+  // Only show session clips (arrangement clips are less commonly edited via agent)
+  const clipStr = t.sessionClips.map((c) => renderClip(c, '      ')).join('\n');
+  // Show take-lane count only; listing names/ids saved for when the LLM needs them
+  const laneHint = t.takeLanes.length ? `\n      TakeLanes: ${t.takeLanes.length}` : '';
+  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${laneHint}`;
 }
 
 export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[]): string {

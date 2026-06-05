@@ -112,7 +112,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/creat.*name|name.*after creat/i);
   });
 
-  it('lists device parameters with range info', () => {
+  it('lists devices with name and id (parameters omitted to save tokens)', () => {
     const state: LiveState = {
       ...emptyState,
       trackCount: 1,
@@ -134,11 +134,12 @@ describe('buildSystemPrompt', () => {
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Analog');
-    expect(prompt).toContain('Volume');
-    expect(prompt).toContain('id:"20"');
+    expect(prompt).toContain('id:"10"');
+    // Individual parameter details are not in the overview (call get_live_state for them)
+    expect(prompt).not.toContain('id:"20"');
   });
 
-  it('lists session clip names and MIDI notes', () => {
+  it('lists session clip names and shows note count hint instead of raw notes', () => {
     const state: LiveState = {
       ...emptyState,
       trackCount: 1,
@@ -163,7 +164,9 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Bass Loop');
     expect(prompt).toContain('id:"55"');
-    expect(prompt).toContain('p:40');
+    // Notes are not dumped inline; only a count hint is shown
+    expect(prompt).toContain('1 notes');
+    expect(prompt).not.toContain('p:40');
   });
 
   it('lists scenes and cue points', () => {
@@ -193,7 +196,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('0, 2, 3, 5, 7, 9, 10');
   });
 
-  it('renders audio clip file path and warp settings', () => {
+  it('renders audio clip filename and warp mode', () => {
     const state: LiveState = {
       ...emptyState,
       trackCount: 1,
@@ -219,8 +222,7 @@ describe('buildSystemPrompt', () => {
       ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
-    expect(prompt).toContain('/samples/kick.wav');
-    expect(prompt).toContain('warp:true');
+    expect(prompt).toContain('kick.wav'); // filename shown (not full path)
     expect(prompt).toContain('warpMode:0');
   });
 

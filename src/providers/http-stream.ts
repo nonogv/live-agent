@@ -6,6 +6,12 @@
 import https from 'node:https';
 import http from 'node:http';
 
+/** Parse `retryDelay` seconds from a Gemini/Google 429 error body. */
+function parseRetryDelay(body: string): number {
+  const m = body.match(/"retryDelay"\s*:\s*"(\d+)s"/);
+  return m ? parseInt(m[1], 10) : 60;
+}
+
 export interface HttpChunk {
   type: 'text' | 'tool_call';
   text?: string;
@@ -26,8 +32,22 @@ interface ReqOptions {
   body: unknown;
 }
 
-/** Make a streaming HTTPS POST and yield raw SSE/NDJSON lines. */
+/** Make a streaming HTTPS POST and yield raw SSE/NDJSON lines. Retries once on 429. */
 async function* streamLines(opts: ReqOptions): AsyncGenerator<string> {
+  try {
+    yield* streamLinesRaw(opts);
+  } catch (err) {
+    if (err instanceof Error && 'retryAfterMs' in err) {
+      const delay = (err as Error & { retryAfterMs: number }).retryAfterMs;
+      await new Promise<void>((r) => setTimeout(r, delay));
+      yield* streamLinesRaw(opts);
+    } else {
+      throw err;
+    }
+  }
+}
+
+async function* streamLinesRaw(opts: ReqOptions): AsyncGenerator<string> {
   const bodyStr = JSON.stringify(opts.body);
 
   const reqOpts: https.RequestOptions = {
@@ -69,7 +89,14 @@ async function* streamLines(opts: ReqOptions): AsyncGenerator<string> {
           .join('\n')
           .replace(/^data: /gm, '')
           .trim();
-        error = new Error(`HTTP ${status}: ${body.slice(0, 500)}`);
+        if (status === 429) {
+          const delaySec = parseRetryDelay(body);
+          error = Object.assign(new Error(`Rate-limited — retrying in ${delaySec}s`), {
+            retryAfterMs: delaySec * 1000,
+          });
+        } else {
+          error = new Error(`HTTP ${status}: ${body.slice(0, 500)}`);
+        }
       }
 
       done = true;
