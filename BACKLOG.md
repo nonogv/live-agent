@@ -39,6 +39,7 @@ Ship when alpha testing is complete and all v1 items below are done.
 ### SDK coverage
 
 - [x] Auto-generate tool schemas and executor from SDK types (`npm run generate`)
+- [ ] **SDK completeness audit** — once all current coverage gaps are closed, do a systematic review: compare every exported class/method in the SDK against the generated schemas and executor dispatch table; write a script or test that fails if any public SDK member is unrepresented; repeat after each SDK update
 - [x] All SDK classes covered: Song, Track, MidiTrack, AudioTrack, ClipSlot, Clip, MidiClip, AudioClip, Scene, CuePoint, Device, DeviceParameter, Simpler, RackDevice, Chain, TakeLane
 - [x] `get_live_state` returns full session snapshot: tracks (regular + return), scenes, cue points, mixer (vol/pan/sends), devices with parameters (min/max/default), session + arrangement clips with MIDI notes, take lanes, main track
 - [x] `findDevice` / `findDeviceParameter` search main track and rack chains
@@ -61,6 +62,9 @@ Ship when alpha testing is complete and all v1 items below are done.
 
 - [x] Prettier, ESLint, Husky + lint-staged, GitHub Actions CI
 - [x] SCSS modules, Vite build pipeline
+- [x] `lucide-react` installed (ready for use across all UI components)
+- [ ] **App icon** — add a custom SVG icon asset and reference it in `manifest.json` (check SDK docs for supported `icon` field); use Lucide icons throughout the UI to replace the current text-label buttons (Tools, Diagnose, Clear, etc.)
+- [ ] **File-per-concern component structure** — adopt the folder-per-component convention: `components/Foo/Foo.tsx` + `Foo.module.scss` + `Foo.test.tsx`; extract logic into custom hooks (`useFoo.ts`) when a component has significant non-rendering state; update `CONTRIBUTING.md` with this convention
 
 ### Chat UX — UI polish
 
@@ -80,13 +84,13 @@ The goal is a minimal, Copilot-like feel: clean chat flow, no visual noise, tool
 - [x] "Clear" button clears both UI state and persisted history
 - [x] `history.json` excluded from git (runtime data)
 
-### Confirmation mode + Autopilot
+### Confirmation mode
 
 - [x] `DESTRUCTIVE_TOOLS` set in `src/agent/safety.ts`
 - [x] `confirm_request` / `confirm_response` WebSocket protocol
 - [x] Server pauses before destructive tools and awaits user response
 - [x] Confirmation card rendered inline in the chat (React)
-- [x] Autopilot toggle in the toolbar — skips confirmations when on
+- [x] Three-way mode: **Review** (confirm every tool call) / **Guard** (confirm destructive only, default) / **Auto** (no confirmations) — replaces the old binary autopilot toggle
 
 ### Checkpoint system
 
