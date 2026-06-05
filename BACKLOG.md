@@ -6,7 +6,7 @@ Status: `0.2.0-alpha.1` — React UI, full SDK coverage, conversation persistenc
 
 ## Now — Alpha testing & integration
 
-Core loop validated ✅ — multi-step tool use, MIDI note generation, device insertion, parameter tweaking all confirmed working in a real session (2026-06-05).
+Core loop validated ✅ — multi-step tool use, MIDI note generation, device insertion, parameter tweaking, deletion with confirmation, tempo changes all confirmed working in a real session (2026-06-05).
 
 - [x] Install Live 12.4.5 beta and load the extension in developer mode
 - [x] Verify the extension registers in Live without errors
@@ -17,12 +17,12 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 - [x] Send "What tracks do I have?" → verify get_live_state returns correct data
 - [x] Multi-turn conversation with tool chaining (create clip → name it → write MIDI notes → insert device)
 - [x] Chat history persists across webview close/reopen
-- [x] Send "Delete the Bass track" → verify deletion works and IDs refresh correctly
+- [x] Send "Delete the Bass track" → verify deletion works and IDs refresh correctly (confirmation dialog shown)
 - [x] Send "Set tempo to 140" → verify `song_set_tempo` updates in Live
-- [ ] Test with OpenAI key
 - [x] Test with Anthropic key
+- [ ] Test with OpenAI key
 - [ ] Test with Gemini key
-- [x] Test what happens when Live is closed and reopened (extension re-activates, history reloads?)
+- [x] Test what happens when Live is closed and reopened (extension re-activates, history reloads ✅)
 
 ---
 
@@ -30,18 +30,18 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 
 Ship when alpha testing is complete and all v1 items below are done.
 
-### SDK coverage (ongoing)
+### SDK coverage
 
 - [x] Auto-generate tool schemas and executor from SDK types (`npm run generate`)
 - [x] All SDK classes covered: Song, Track, MidiTrack, AudioTrack, ClipSlot, Clip, MidiClip, AudioClip, Scene, CuePoint, Device, DeviceParameter, Simpler, RackDevice, Chain, TakeLane
 - [x] `get_live_state` returns full session snapshot: tracks (regular + return), scenes, cue points, mixer (vol/pan/sends), devices with parameters (min/max/default), session + arrangement clips with MIDI notes, take lanes, main track
 - [x] `findDevice` / `findDeviceParameter` search main track and rack chains
-- [x] Enum values in tool schemas resolve to human-readable descriptions
+- [x] Enum values in tool schemas resolve to human-readable descriptions (e.g. `0 (Beats), 1 (Tones)…`)
 - [ ] AudioClip properties in live state (`filePath`, `warping`, `warpMode`) — needed for warp editing workflows
 - [ ] Song scale/key in live state (`rootNote`, `scaleName`, `scaleMode`) — needed for intelligent note generation
-- [ ] `Promise<void>` SDK methods not currently awaited in executor — fix generator's void-check to distinguish `void` from `Promise<void>`
-- [ ] `ClipLoopSettings` object undocumented in `audio_track_create_audio_clip` / `clip_slot_create_audio_clip` / `take_lane_create_audio_clip` tool schemas
-- [ ] Scene tempo `-1` not explained in system prompt (means "inherits from Song tempo", not a real value)
+- [ ] `Promise<void>` SDK methods not awaited in executor — generator checks `.includes("void")` so `Promise<void>` skips `await`; fix to exact match `=== "void"`
+- [ ] `ClipLoopSettings` object undocumented in the three `createAudioClip` tool schemas
+- [ ] Scene tempo `-1` not explained in system prompt (means "inherits from Song tempo", not a real BPM value)
 
 ### React + Vite UI
 
@@ -58,7 +58,7 @@ Ship when alpha testing is complete and all v1 items below are done.
 
 ### Chat UX
 
-- [ ] Markdown rendering in agent messages (bold, code blocks, tables)
+- [ ] Markdown rendering in agent messages — `MessageBubble` currently renders `content` as plain text; add a library (e.g. `react-markdown`) and sanitise output
 
 ### Conversation persistence
 
@@ -66,6 +66,7 @@ Ship when alpha testing is complete and all v1 items below are done.
 - [x] History loaded on server start, saved after each turn
 - [x] History restored in UI on every new WebSocket connection (close + reopen the panel → chat is back)
 - [x] "Clear" button clears both UI state and persisted history
+- [x] `history.json` excluded from git (runtime data)
 
 ### Confirmation mode + Autopilot
 
@@ -77,10 +78,12 @@ Ship when alpha testing is complete and all v1 items below are done.
 
 ### Checkpoint system
 
-- [ ] Wrap all tool calls in a single agent turn in `withinTransaction()` in `server.ts`
-- [ ] Handle the async edge case (callback must be synchronous — verify approach)
-- [ ] After each turn, show a subtle "Revert with ⌘Z" note in the chat
-- [ ] Document the limitation: one undo step per turn, not full history
+`withinTransaction` lives on `ExtensionContext` (not `Song`). The callback **must be synchronous**, which conflicts with our async tool calls. Needs design work before coding.
+
+- [ ] Pass `context` (or `context.application.withinTransaction`) into `startServer` — currently only `getSong` is injected
+- [ ] Design how to wrap async tool calls inside a sync `withinTransaction` callback — options: collect all tool IDs first then execute synchronously, or check if the SDK actually awaits the callback at runtime
+- [ ] After each agent turn, send a `{ type: 'turn_committed' }` WS message so the UI can show "Revert with ⌘Z"
+- [ ] Document the limitation: one undo step per turn (Live's undo stack), not full multi-turn history
 
 ---
 
