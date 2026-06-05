@@ -9,3 +9,4 @@ dist/ui/
 *.ablext
 settings.json
 debug-probe.txt
+history.json
