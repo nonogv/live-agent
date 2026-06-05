@@ -8,14 +8,18 @@ interface Settings {
     anthropic?: string;
     gemini?: string;
   };
-  defaultProvider: string;
-  defaultModel: string;
+  lastProvider?: string;
+  lastModel?: string;
+}
+
+/** Legacy fields present only in older persisted settings.json files. */
+interface LegacySettings extends Partial<Settings> {
+  defaultProvider?: string;
+  defaultModel?: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   apiKeys: {},
-  defaultProvider: 'openai',
-  defaultModel: 'gpt-4o-mini',
 };
 
 const HISTORY_MAX_MESSAGES = 100;
@@ -28,26 +32,58 @@ export class Storage {
   constructor(storageDirectory: string) {
     this.filePath = path.join(storageDirectory, 'settings.json');
     this.historyFilePath = path.join(storageDirectory, 'history.json');
-    this.data = this.load();
+    const { data, migrated } = this.load();
+    this.data = data;
+    if (migrated) {
+      this.save();
+    }
   }
 
-  private load(): Settings {
+  private load(): { data: Settings; migrated: boolean } {
     const defaults = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as Settings;
     try {
       const raw = fs.readFileSync(this.filePath, 'utf-8');
-      const parsed = JSON.parse(raw) as Partial<Settings>;
-      return { ...defaults, ...parsed, apiKeys: { ...defaults.apiKeys, ...parsed.apiKeys } };
+      const parsed = JSON.parse(raw) as LegacySettings;
+      const data: Settings = {
+        ...defaults,
+        apiKeys: { ...defaults.apiKeys, ...parsed.apiKeys },
+        lastProvider: parsed.lastProvider,
+        lastModel: parsed.lastModel,
+      };
+
+      let migrated = false;
+      if (data.lastProvider === undefined && parsed.defaultProvider !== undefined) {
+        data.lastProvider = parsed.defaultProvider;
+        migrated = true;
+      }
+      if (data.lastModel === undefined && parsed.defaultModel !== undefined) {
+        data.lastModel = parsed.defaultModel;
+        migrated = true;
+      }
+      if (parsed.defaultProvider !== undefined || parsed.defaultModel !== undefined) {
+        migrated = true;
+      }
+
+      return { data, migrated };
     } catch {
-      return defaults;
+      return { data: defaults, migrated: false };
     }
   }
 
   private save(): void {
     try {
+      const toPersist: Settings = { apiKeys: this.data.apiKeys };
+      if (this.data.lastProvider !== undefined) {
+        toPersist.lastProvider = this.data.lastProvider;
+      }
+      if (this.data.lastModel !== undefined) {
+        toPersist.lastModel = this.data.lastModel;
+      }
       fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-      fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf-8');
+      fs.writeFileSync(this.filePath, JSON.stringify(toPersist, null, 2), 'utf-8');
     } catch (err) {
       console.error('[Live Agent] Failed to save settings:', err);
+      throw err;
     }
   }
 
@@ -60,17 +96,20 @@ export class Storage {
     this.save();
   }
 
-  getDefaultProvider(): string {
-    return this.data.defaultProvider;
+  /** Returns the last-used provider, defaulting to anthropic when unset. */
+  getLastProvider(): string {
+    return this.data.lastProvider ?? 'anthropic';
   }
 
-  getDefaultModel(): string {
-    return this.data.defaultModel;
+  /** Returns the last-used model, or an empty string when unset. */
+  getLastModel(): string {
+    return this.data.lastModel ?? '';
   }
 
-  setDefaults(provider: string, model: string): void {
-    this.data.defaultProvider = provider;
-    this.data.defaultModel = model;
+  /** Persists the user's active provider and model selection. */
+  saveLastChoice(provider: string, model: string): void {
+    this.data.lastProvider = provider;
+    this.data.lastModel = model;
     this.save();
   }
 

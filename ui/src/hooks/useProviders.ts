@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ProvidersRegistry } from '../types';
 
 /** Static provider/model registry. */
@@ -39,26 +39,66 @@ export interface UseProvidersReturn {
   models: { id: string; label: string }[];
   setProvider: (p: string) => void;
   setModel: (m: string) => void;
+  /** Applies persisted last-used provider/model from a settings message. */
+  initFromLastChoice: (lastProvider?: string, lastModel?: string) => void;
 }
 
 /**
  * Manages the currently selected provider and model.
- * When the provider changes the model resets to the first available.
+ * When the provider changes the model resets to the first available unless
+ * a persisted lastModel is supplied via initFromLastChoice.
  */
 export function useProviders(
-  initialProvider = 'openai',
-  initialModel?: string,
+  onChoiceChange?: (provider: string, model: string) => void,
 ): UseProvidersReturn {
-  const [provider, setProviderRaw] = useState(initialProvider);
-  const [model, setModel] = useState(initialModel ?? PROVIDERS[initialProvider].models[0].id);
+  const [provider, setProviderRaw] = useState('anthropic');
+  const [model, setModelRaw] = useState(PROVIDERS.anthropic.models[0].id);
 
   const models = useMemo(() => PROVIDERS[provider]?.models ?? [], [provider]);
 
-  function setProvider(p: string) {
-    setProviderRaw(p);
-    const firstModel = PROVIDERS[p]?.models[0]?.id ?? '';
-    setModel(firstModel);
-  }
+  const notifyChange = useCallback(
+    (p: string, m: string) => {
+      onChoiceChange?.(p, m);
+    },
+    [onChoiceChange],
+  );
 
-  return { providers: PROVIDERS, provider, model, models, setProvider, setModel };
+  const initFromLastChoice = useCallback((lastProvider?: string, lastModel?: string) => {
+    const p = lastProvider ?? 'anthropic';
+    const providerModels = PROVIDERS[p]?.models ?? [];
+    const m =
+      lastModel && providerModels.some((entry) => entry.id === lastModel)
+        ? lastModel
+        : (providerModels[0]?.id ?? '');
+    setProviderRaw(p);
+    setModelRaw(m);
+  }, []);
+
+  const setProvider = useCallback(
+    (p: string) => {
+      const firstModel = PROVIDERS[p]?.models[0]?.id ?? '';
+      setProviderRaw(p);
+      setModelRaw(firstModel);
+      notifyChange(p, firstModel);
+    },
+    [notifyChange],
+  );
+
+  const setModel = useCallback(
+    (m: string) => {
+      setModelRaw(m);
+      notifyChange(provider, m);
+    },
+    [notifyChange, provider],
+  );
+
+  return {
+    providers: PROVIDERS,
+    provider,
+    model,
+    models,
+    setProvider,
+    setModel,
+    initFromLastChoice,
+  };
 }

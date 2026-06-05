@@ -125,12 +125,8 @@ type WebViewMessage =
   | { type: 'chat'; text: string; provider: string; model: string }
   | { type: 'clear_history' }
   | { type: 'get_settings' }
-  | {
-      type: 'save_settings';
-      keys: Record<string, string>;
-      defaultProvider: string;
-      defaultModel: string;
-    }
+  | { type: 'save_settings'; keys: Record<string, string> }
+  | { type: 'set_active_choice'; provider: string; model: string }
   | { type: 'clear_key'; provider: string }
   | { type: 'open_url'; url: string }
   | { type: 'console_log'; level: string; message: string }
@@ -180,8 +176,8 @@ async function handleMessage(
         JSON.stringify({
           type: 'settings',
           keys: storage.getMaskedKeys(),
-          defaultProvider: storage.getDefaultProvider(),
-          defaultModel: storage.getDefaultModel(),
+          lastProvider: storage.getLastProvider(),
+          lastModel: storage.getLastModel(),
         }),
       );
       break;
@@ -192,8 +188,11 @@ async function handleMessage(
           storage.setApiKey(provider, key);
         }
       }
-      storage.setDefaults(msg.defaultProvider, msg.defaultModel);
       ws.send(JSON.stringify({ type: 'settings_saved' }));
+      break;
+
+    case 'set_active_choice':
+      storage.saveLastChoice(msg.provider, msg.model);
       break;
 
     case 'clear_key':

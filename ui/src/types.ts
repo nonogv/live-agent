@@ -45,8 +45,8 @@ export interface SettingsPayload {
   type: 'settings';
   /** Map of provider → masked key string (truthy = set). */
   keys: Record<string, string | null>;
-  defaultProvider: string;
-  defaultModel: string;
+  lastProvider?: string;
+  lastModel?: string;
 }
 
 // ── WebSocket message types (server → client) ──────────────────────────────
@@ -72,12 +72,8 @@ export type ClientMessage =
   | { type: 'chat'; text: string; provider: string; model: string }
   | { type: 'clear_history' }
   | { type: 'get_settings' }
-  | {
-      type: 'save_settings';
-      keys: Record<string, string>;
-      defaultProvider: string;
-      defaultModel: string;
-    }
+  | { type: 'save_settings'; keys: Record<string, string> }
+  | { type: 'set_active_choice'; provider: string; model: string }
   | { type: 'clear_key'; provider: string }
   | { type: 'open_url'; url: string }
   | { type: 'console_log'; level: string; message: string }

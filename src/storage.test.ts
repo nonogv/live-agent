@@ -64,31 +64,99 @@ describe('Storage — persistence', () => {
     expect(s2.getApiKey('gemini')).toBe('AIza-persistent');
   });
 
-  it('persists defaults to disk and reloads them', () => {
+  it('persists last choice to disk and reloads it', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
     tmpDirs.push(dir);
 
     const s1 = makeStorageAt(dir);
-    s1.setDefaults('anthropic', 'claude-opus-4-8');
+    s1.saveLastChoice('anthropic', 'claude-opus-4-8');
 
     const s2 = makeStorageAt(dir);
-    expect(s2.getDefaultProvider()).toBe('anthropic');
-    expect(s2.getDefaultModel()).toBe('claude-opus-4-8');
-  });
-
-  it('returns default settings when no file exists', () => {
-    const s = makeStorage();
-    expect(s.getDefaultProvider()).toBe('openai');
-    expect(s.getDefaultModel()).toBe('gpt-4o-mini');
+    expect(s2.getLastProvider()).toBe('anthropic');
+    expect(s2.getLastModel()).toBe('claude-opus-4-8');
   });
 });
 
-describe('Storage — defaults', () => {
-  it('sets and gets default provider and model', () => {
+describe('Storage — last provider/model', () => {
+  it('returns anthropic and empty model when unset', () => {
     const s = makeStorage();
-    s.setDefaults('gemini', 'gemini-3.5-flash');
-    expect(s.getDefaultProvider()).toBe('gemini');
-    expect(s.getDefaultModel()).toBe('gemini-3.5-flash');
+    expect(s.getLastProvider()).toBe('anthropic');
+    expect(s.getLastModel()).toBe('');
+  });
+
+  it('saves and returns last provider and model', () => {
+    const s = makeStorage();
+    s.saveLastChoice('gemini', 'gemini-3.5-flash');
+    expect(s.getLastProvider()).toBe('gemini');
+    expect(s.getLastModel()).toBe('gemini-3.5-flash');
+  });
+});
+
+describe('Storage — migration from default fields', () => {
+  it('migrates defaultProvider to lastProvider when lastProvider is unset', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+    fs.writeFileSync(
+      path.join(dir, 'settings.json'),
+      JSON.stringify({ apiKeys: {}, defaultProvider: 'openai' }),
+    );
+
+    const s = makeStorageAt(dir);
+    expect(s.getLastProvider()).toBe('openai');
+  });
+
+  it('migrates defaultModel to lastModel when lastModel is unset', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+    fs.writeFileSync(
+      path.join(dir, 'settings.json'),
+      JSON.stringify({ apiKeys: {}, defaultModel: 'gpt-4o-mini' }),
+    );
+
+    const s = makeStorageAt(dir);
+    expect(s.getLastModel()).toBe('gpt-4o-mini');
+  });
+
+  it('removes legacy default fields from persisted JSON on migration', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+    fs.writeFileSync(
+      path.join(dir, 'settings.json'),
+      JSON.stringify({
+        apiKeys: { openai: 'sk-legacy' },
+        defaultProvider: 'openai',
+        defaultModel: 'gpt-4o-mini',
+      }),
+    );
+
+    makeStorageAt(dir);
+    const persisted = JSON.parse(
+      fs.readFileSync(path.join(dir, 'settings.json'), 'utf-8'),
+    ) as Record<string, unknown>;
+
+    expect(persisted.lastProvider).toBe('openai');
+    expect(persisted.lastModel).toBe('gpt-4o-mini');
+    expect(persisted.defaultProvider).toBeUndefined();
+    expect(persisted.defaultModel).toBeUndefined();
+  });
+
+  it('does not overwrite existing lastProvider/lastModel with legacy defaults', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+    fs.writeFileSync(
+      path.join(dir, 'settings.json'),
+      JSON.stringify({
+        apiKeys: {},
+        lastProvider: 'gemini',
+        lastModel: 'gemini-3.5-flash',
+        defaultProvider: 'openai',
+        defaultModel: 'gpt-4o-mini',
+      }),
+    );
+
+    const s = makeStorageAt(dir);
+    expect(s.getLastProvider()).toBe('gemini');
+    expect(s.getLastModel()).toBe('gemini-3.5-flash');
   });
 });
 

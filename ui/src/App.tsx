@@ -1,10 +1,16 @@
-import { useCallback, useReducer, useState } from 'react';
+import { useCallback, useReducer, useRef, useState } from 'react';
 import { ChatPanel } from './components/ChatPanel';
 import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProviders } from './hooks/useProviders';
-import type { ChatMessage, ConfirmMode, ServerMessage, SettingsPayload } from './types';
+import type {
+  ChatMessage,
+  ClientMessage,
+  ConfirmMode,
+  ServerMessage,
+  SettingsPayload,
+} from './types';
 
 // ── Chat state via useReducer ────────────────────────────────────────────────
 
@@ -138,7 +144,14 @@ export function App() {
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
   const [chatState, dispatch] = useReducer(chatReducer, { messages: [], streaming: false });
 
-  const { providers, provider, model, models, setProvider, setModel } = useProviders();
+  const sendRef = useRef<(msg: ClientMessage) => void>(() => {});
+
+  const handleChoiceChange = useCallback((nextProvider: string, nextModel: string) => {
+    sendRef.current({ type: 'set_active_choice', provider: nextProvider, model: nextModel });
+  }, []);
+
+  const { providers, provider, model, models, setProvider, setModel, initFromLastChoice } =
+    useProviders(handleChoiceChange);
 
   const handleMessage = useCallback(
     (msg: ServerMessage) => {
@@ -174,9 +187,7 @@ export function App() {
           break;
         case 'settings':
           setSettings(msg);
-          // Sync provider/model selectors to saved defaults
-          setProvider(msg.defaultProvider);
-          setModel(msg.defaultModel);
+          initFromLastChoice(msg.lastProvider, msg.lastModel);
           break;
         case 'settings_saved':
           break;
@@ -190,10 +201,11 @@ export function App() {
           break;
       }
     },
-    [debugMode],
+    [debugMode, initFromLastChoice],
   );
 
   const { send: sendMsg } = useWebSocket(handleMessage);
+  sendRef.current = sendMsg;
 
   function handleSend(text: string) {
     dispatch({ type: 'ADD_USER', text });
@@ -227,11 +239,7 @@ export function App() {
     sendMsg({ type: 'confirm_response', confirmed, toolCallId });
   }
 
-  function handleSaveSettings(payload: {
-    keys: Record<string, string>;
-    defaultProvider: string;
-    defaultModel: string;
-  }) {
+  function handleSaveSettings(payload: { keys: Record<string, string> }) {
     sendMsg({ type: 'save_settings', ...payload });
   }
 
