@@ -13,6 +13,7 @@ import { GENERATED_TOOL_SCHEMAS } from './agent/generated-tools.js';
 import { CUSTOM_TOOL_SCHEMAS } from './agent/tools.js';
 import { createProvider, type ProviderMessage } from './providers/index.js';
 import { DESTRUCTIVE_TOOLS } from './agent/safety.js';
+import { runWithinTransaction } from './run-within-transaction.js';
 
 const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
@@ -40,6 +41,7 @@ export interface LiveAgentServer {
 export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
+  withinTransaction: (cb: () => void) => void,
 ): Promise<LiveAgentServer> {
   const history = storage.loadHistory();
   let confirmMode: ConfirmMode = 'guard';
@@ -95,9 +97,18 @@ export async function startServer(
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
-        handleMessage(ws, msg, getSong, storage, history, confirmMode, (val) => {
-          confirmMode = val;
-        }).catch((err) => {
+        handleMessage(
+          ws,
+          msg,
+          getSong,
+          storage,
+          history,
+          confirmMode,
+          (val) => {
+            confirmMode = val;
+          },
+          withinTransaction,
+        ).catch((err) => {
           ws.send(JSON.stringify({ type: 'error', message: String(err) }));
         });
       } catch {
@@ -142,6 +153,7 @@ async function handleMessage(
   history: ProviderMessage[],
   confirmMode: ConfirmMode,
   setConfirmMode: (val: ConfirmMode) => void,
+  withinTransaction: (cb: () => void) => void,
 ): Promise<void> {
   switch (msg.type) {
     case 'chat':
@@ -154,6 +166,7 @@ async function handleMessage(
         storage,
         history,
         confirmMode,
+        withinTransaction,
       );
       break;
 
@@ -221,6 +234,18 @@ async function handleMessage(
   }
 }
 
+/**
+ * Each call to handleChat wraps all tool executions in withinTransaction(),
+ * providing a single undo step via Live's undo stack (⌘Z). This is NOT
+ * a full multi-turn history — only the most recent agent turn can be undone.
+ * For full history, see issue #29 (multi-point checkpoint history, v2).
+ *
+ * withinTransaction requires a synchronous callback; tool calls are async.
+ * We start the turn inside the transaction callback and await completion
+ * outside it. Whether Live batches async SDK mutations into that undo step
+ * must be verified empirically — if not, ⌘Z may only revert changes that
+ * were applied synchronously before the callback returned.
+ */
 async function handleChat(
   ws: WebSocket,
   userText: string,
@@ -230,6 +255,7 @@ async function handleChat(
   storage: Storage,
   history: ProviderMessage[],
   confirmMode: ConfirmMode,
+  withinTransaction: (cb: () => void) => void,
 ): Promise<void> {
   const apiKey = storage.getApiKey(providerId);
   if (!apiKey) {
@@ -246,101 +272,104 @@ async function handleChat(
   ws.send(JSON.stringify({ type: 'stream_start' }));
 
   try {
-    const provider = createProvider(providerId, apiKey);
-    const song = getSong();
-    const liveState = await getLiveState(song);
-    const systemPrompt = buildSystemPrompt(liveState, ALL_TOOL_SCHEMAS);
+    await runWithinTransaction(withinTransaction, async () => {
+      const provider = createProvider(providerId, apiKey);
+      const song = getSong();
+      const liveState = await getLiveState(song);
+      const systemPrompt = buildSystemPrompt(liveState, ALL_TOOL_SCHEMAS);
 
-    // Agentic loop: keep calling the provider until it returns a final text
-    // response with no tool calls (max 10 rounds as a safety net).
-    const MAX_ROUNDS = 10;
-    let round = 0;
+      // Agentic loop: keep calling the provider until it returns a final text
+      // response with no tool calls (max 10 rounds as a safety net).
+      const MAX_ROUNDS = 10;
+      let round = 0;
 
-    while (round < MAX_ROUNDS) {
-      round++;
-      let assistantContent = '';
-      let hadToolCall = false;
+      while (round < MAX_ROUNDS) {
+        round++;
+        let assistantContent = '';
+        let hadToolCall = false;
 
-      dbg(`[Live Agent] round ${round} — provider=${providerId} model=${model}`);
-      for await (const chunk of provider.chat({
-        model,
-        systemPrompt,
-        messages: [...history],
-        tools: ALL_TOOL_SCHEMAS,
-      })) {
-        if (chunk.type === 'text') {
-          assistantContent += chunk.text;
-          ws.send(JSON.stringify({ type: 'stream_chunk', text: chunk.text }));
-        } else if (chunk.type === 'tool_call') {
-          hadToolCall = true;
+        dbg(`[Live Agent] round ${round} — provider=${providerId} model=${model}`);
+        for await (const chunk of provider.chat({
+          model,
+          systemPrompt,
+          messages: [...history],
+          tools: ALL_TOOL_SCHEMAS,
+        })) {
+          if (chunk.type === 'text') {
+            assistantContent += chunk.text;
+            ws.send(JSON.stringify({ type: 'stream_chunk', text: chunk.text }));
+          } else if (chunk.type === 'tool_call') {
+            hadToolCall = true;
 
-          const needsConfirm =
-            confirmMode === 'review' ||
-            (confirmMode === 'guard' && DESTRUCTIVE_TOOLS.has(chunk.name));
-          if (needsConfirm) {
-            const confirmed = await requestConfirmation(ws, chunk.id, chunk.name, chunk.args);
-            if (!confirmed) {
-              history.push({ role: 'assistant', content: assistantContent, toolCall: chunk });
-              history.push({
-                role: 'tool',
-                toolCallId: chunk.id,
-                toolName: chunk.name,
-                content: JSON.stringify({ cancelled: true, reason: 'User declined.' }),
-              });
-              ws.send(
-                JSON.stringify({
-                  type: 'tool_result',
-                  name: chunk.name,
-                  result: { cancelled: true },
-                }),
-              );
-              assistantContent = '';
-              continue;
-            }
-          }
-
-          ws.send(JSON.stringify({ type: 'tool_start', name: chunk.name, args: chunk.args }));
-
-          const result = await executeGeneratedTool(song, chunk.name, chunk.args).catch(
-            (err: unknown) => {
-              // Only fall back to custom tools for genuinely unknown generated tools.
-              // Re-throw real execution errors so the LLM gets actionable feedback.
-              if (err instanceof Error && err.message.startsWith('Unknown generated tool:')) {
-                return handleToolCall(song, chunk.name, chunk.args);
+            const needsConfirm =
+              confirmMode === 'review' ||
+              (confirmMode === 'guard' && DESTRUCTIVE_TOOLS.has(chunk.name));
+            if (needsConfirm) {
+              const confirmed = await requestConfirmation(ws, chunk.id, chunk.name, chunk.args);
+              if (!confirmed) {
+                history.push({ role: 'assistant', content: assistantContent, toolCall: chunk });
+                history.push({
+                  role: 'tool',
+                  toolCallId: chunk.id,
+                  toolName: chunk.name,
+                  content: JSON.stringify({ cancelled: true, reason: 'User declined.' }),
+                });
+                ws.send(
+                  JSON.stringify({
+                    type: 'tool_result',
+                    name: chunk.name,
+                    result: { cancelled: true },
+                  }),
+                );
+                assistantContent = '';
+                continue;
               }
-              throw err;
-            },
-          );
+            }
 
-          ws.send(JSON.stringify({ type: 'tool_result', name: chunk.name, result }));
+            ws.send(JSON.stringify({ type: 'tool_start', name: chunk.name, args: chunk.args }));
 
-          history.push({
-            role: 'assistant',
-            content: assistantContent,
-            toolCall: chunk,
-          });
-          history.push({
-            role: 'tool',
-            toolCallId: chunk.id,
-            toolName: chunk.name,
-            content: JSON.stringify(result),
-          });
+            const result = await executeGeneratedTool(song, chunk.name, chunk.args).catch(
+              (err: unknown) => {
+                // Only fall back to custom tools for genuinely unknown generated tools.
+                // Re-throw real execution errors so the LLM gets actionable feedback.
+                if (err instanceof Error && err.message.startsWith('Unknown generated tool:')) {
+                  return handleToolCall(song, chunk.name, chunk.args);
+                }
+                throw err;
+              },
+            );
 
-          assistantContent = '';
+            ws.send(JSON.stringify({ type: 'tool_result', name: chunk.name, result }));
+
+            history.push({
+              role: 'assistant',
+              content: assistantContent,
+              toolCall: chunk,
+            });
+            history.push({
+              role: 'tool',
+              toolCallId: chunk.id,
+              toolName: chunk.name,
+              content: JSON.stringify(result),
+            });
+
+            assistantContent = '';
+          }
         }
-      }
 
-      if (!hadToolCall) {
-        // Final response — push and stop looping
-        if (assistantContent) {
-          history.push({ role: 'assistant', content: assistantContent });
+        if (!hadToolCall) {
+          // Final response — push and stop looping
+          if (assistantContent) {
+            history.push({ role: 'assistant', content: assistantContent });
+          }
+          break;
         }
-        break;
+        // Tool calls were made; loop to get the model's follow-up response
       }
-      // Tool calls were made; loop to get the model's follow-up response
-    }
+    });
 
     ws.send(JSON.stringify({ type: 'stream_end' }));
+    ws.send(JSON.stringify({ type: 'turn_committed' }));
     storage.saveHistory(history);
   } catch (err) {
     const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);

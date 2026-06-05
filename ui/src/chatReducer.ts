@@ -13,6 +13,7 @@ export type ChatAction =
   | { type: 'CONFIRM_REQUEST'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'CONFIRM_RESPOND'; toolCallId: string }
   | { type: 'ERROR'; message: string }
+  | { type: 'TURN_COMMITTED' }
   | { type: 'CLEAR' };
 
 /** Chat panel state managed by {@link chatReducer}. */
@@ -134,6 +135,15 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...state,
         streaming: false,
         messages: [...state.messages, { id: nextId(), role: 'error', content: action.message }],
+      };
+
+    case 'TURN_COMMITTED':
+      return {
+        ...state,
+        messages: [
+          ...state.messages,
+          { id: nextId(), role: 'hint', content: '⌘Z to revert this turn' },
+        ],
       };
 
     case 'CLEAR':

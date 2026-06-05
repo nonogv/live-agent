@@ -17,6 +17,7 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 - `get_live_state` with tracks, mixer, devices + parameters, session/arrangement clips + MIDI notes, scenes, cue points, take lanes, main track
 - Three-way confirmation mode: **Review** / **Guard** / **Auto**
 - Conversation persistence (load/save across restarts, clear button)
+- Checkpoint system — `withinTransaction` integration, ⌘Z revert hint (#20–#23)
 - Prettier + ESLint + Husky + GitHub Actions CI
 - Gemini HTTP error surfacing + functionResponse.name fix
 - `lucide-react` installed
@@ -32,7 +33,6 @@ Remaining work clusters into five areas:
 2. **SDK gaps** — AudioClip state, Song scale/key, Promise\<void\> await, ClipLoopSettings docs, scene tempo note, SDK completeness audit (#8–#13)
 3. **UI polish** — Tailwind v4 migration, minimal layout, tool fold, markdown, Lucide icons, component structure (#14–#19)
 4. **Provider UX** — remember last used provider + model (#7)
-5. **Checkpoint system** — design + implement `withinTransaction` integration (#20–#23)
 
 ---
 

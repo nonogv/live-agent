@@ -41,6 +41,9 @@ export function App() {
           dispatch({ type: 'STREAM_END' });
           dispatch({ type: 'FOLD_TOOL_MESSAGES' });
           break;
+        case 'turn_committed':
+          dispatch({ type: 'TURN_COMMITTED' });
+          break;
         case 'tool_start':
           if (debugMode) dispatch({ type: 'TOOL_START', name: msg.name, args: msg.args });
           break;

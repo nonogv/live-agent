@@ -121,6 +121,12 @@ Generated files (`src/agent/generated-tools.ts`, `src/live/generated-executor.ts
 
 ---
 
+## Checkpoint / undo limitation
+
+Agent turns wrap tool execution in Live's `withinTransaction()`, which exposes a single **⌘Z** undo step for the most recent turn. This is not a multi-turn checkpoint history — only the latest agent turn can be reverted. `withinTransaction` requires a synchronous callback while our tool calls are async; undo semantics for async SDK mutations must be verified empirically in Live. Multi-point checkpoint history is planned for v2 (issue #29).
+
+---
+
 ## Testing
 
 We use **Vitest**. Tests live next to source files as `*.test.ts`.

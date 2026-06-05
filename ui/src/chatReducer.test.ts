@@ -46,6 +46,19 @@ describe('chatReducer', () => {
     expect(folded.messages[0].folded).toBe(true);
   });
 
+  it('TURN_COMMITTED appends a revert hint message', () => {
+    const state = {
+      messages: [{ id: '1', role: 'agent' as const, content: 'done' }],
+      streaming: false,
+    };
+
+    const next = chatReducer(state, { type: 'TURN_COMMITTED' });
+
+    expect(next.messages).toHaveLength(2);
+    expect(next.messages[1].role).toBe('hint');
+    expect(next.messages[1].content).toBe('⌘Z to revert this turn');
+  });
+
   it('STREAM_END clears streaming flag without folding tools', () => {
     const state = {
       messages: [
