@@ -2,6 +2,8 @@
 @import 'tailwindcss/preflight.css';
 @import 'tailwindcss/utilities.css';
 
+@plugin "@tailwindcss/typography";
+
 /* Scan UI sources — required for @tailwindcss/vite content detection */
 @source '../src/**/*.{ts,tsx}';
 

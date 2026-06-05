@@ -8,6 +8,7 @@ interface ChatPanelProps {
   onSend: (text: string) => void;
   onSuggestion: (text: string) => void;
   onConfirm: (toolCallId: string, confirmed: boolean) => void;
+  onToggleToolFold: (id: string) => void;
 }
 
 /** Full chat panel: message list + input bar. */
@@ -17,10 +18,16 @@ export function ChatPanel({
   onSend,
   onSuggestion,
   onConfirm,
+  onToggleToolFold,
 }: ChatPanelProps) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <MessageList messages={messages} onSuggestion={onSuggestion} onConfirm={onConfirm} />
+      <MessageList
+        messages={messages}
+        onSuggestion={onSuggestion}
+        onConfirm={onConfirm}
+        onToggleToolFold={onToggleToolFold}
+      />
       <ChatInput disabled={streaming} onSend={onSend} />
     </div>
   );

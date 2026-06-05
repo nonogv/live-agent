@@ -1,61 +1,43 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Check, X } from 'lucide-react';
 import type { ChatMessage } from '../../types';
 
 interface MessageBubbleProps {
   message: ChatMessage;
   onConfirm: (toolCallId: string, confirmed: boolean) => void;
+  onToggleToolFold: (id: string) => void;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  user: 'You',
-  agent: 'Live Agent',
-  tool: 'Tool',
-  error: 'Error',
-  confirm: 'Confirmation required',
-};
+const ICON_BTN =
+  'flex cursor-pointer items-center justify-center rounded-default border-none p-1.5 transition-colors hover:bg-surface2';
 
-const BASE = 'rounded-default p-2.5 leading-normal max-w-full break-words';
-
-const ROLE_CLASSES: Record<string, string> = {
-  user: `${BASE} bg-surface3 self-end max-w-[85%]`,
-  agent: `${BASE} bg-[#1f2a1f] border border-[#2a3d2a]`,
-  tool: `${BASE} bg-[#1a1f2a] border border-[#1a2a3d] font-mono text-[11px] text-text-dim`,
-  error: `${BASE} bg-[#2a1a1a] border border-[#3d1a1a] text-red-400`,
-  confirm: `${BASE} bg-[#1a1f2a] border border-[#3a3a1a] font-mono text-[11px] text-text-dim`,
-};
-
-const LABEL_CLASSES: Record<string, string> = {
-  user: 'text-accent',
-  agent: 'text-[#6abf6a]',
-  tool: 'text-[#6a9abf]',
-};
-
-/** Renders a single chat message bubble with the appropriate role styling. */
-export function MessageBubble({ message, onConfirm }: MessageBubbleProps) {
-  const { role, content, streaming, toolName, toolArgs, toolCallId } = message;
+/** Renders a single chat message with role-appropriate styling. */
+export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageBubbleProps) {
+  const { role, content, streaming, toolName, toolArgs, toolCallId, folded } = message;
 
   if (role === 'confirm' && toolCallId) {
     return (
-      <div className={ROLE_CLASSES.confirm}>
-        <div className="label mb-1.5 text-[10px] font-semibold uppercase tracking-wide opacity-60">
-          {ROLE_LABELS.confirm}
-        </div>
+      <div className="ml-2 font-mono text-[11px] text-text-dim">
         <div className="whitespace-pre-wrap">
           <span className="font-semibold text-[#7ab0d4]">⚠ {toolName}</span>
-          <div className="mt-0.5 text-text-dim whitespace-pre-wrap">
+          <div className="mt-0.5 whitespace-pre-wrap text-text-dim">
             {JSON.stringify(toolArgs, null, 2)}
           </div>
-          <div className="mt-2.5 flex gap-2">
+          <div className="mt-2 flex gap-1.5">
             <button
-              className="cursor-pointer rounded-default border border-[#3a6a3a] bg-[#1e3a1e] px-3 py-1 text-[12px] text-[#6abf6a] transition-colors hover:bg-[#254a25]"
+              className={`${ICON_BTN} text-[#6abf6a]`}
               onClick={() => onConfirm(toolCallId, true)}
+              title="Confirm"
             >
-              ✓ Confirm
+              <Check size={14} />
             </button>
             <button
-              className="cursor-pointer rounded-default border border-[#6a3a3a] bg-[#3a1e1e] px-3 py-1 text-[12px] text-red-400 transition-colors hover:bg-[#4a2525]"
+              className={`${ICON_BTN} text-red-400`}
               onClick={() => onConfirm(toolCallId, false)}
+              title="Cancel"
             >
-              ✗ Cancel
+              <X size={14} />
             </button>
           </div>
         </div>
@@ -63,25 +45,61 @@ export function MessageBubble({ message, onConfirm }: MessageBubbleProps) {
     );
   }
 
-  return (
-    <div className={ROLE_CLASSES[role] ?? BASE}>
-      <div
-        className={`label mb-1.5 text-[10px] font-semibold uppercase tracking-wide opacity-60 ${LABEL_CLASSES[role] ?? ''}`}
-      >
-        {ROLE_LABELS[role] ?? role}
+  if (role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-default bg-[#2a2a2a] px-2.5 py-2 leading-normal break-words">
+          <div className="whitespace-pre-wrap">{content}</div>
+        </div>
       </div>
-      {role === 'tool' ? (
-        <div className="whitespace-pre-wrap">
-          <span className="font-semibold text-[#7ab0d4]">⚙ {toolName}</span>
-          <div className="mt-0.5 text-text-dim whitespace-pre-wrap">
-            {JSON.stringify(toolArgs, null, 2)}
+    );
+  }
+
+  if (role === 'agent') {
+    return (
+      <div className="leading-normal break-words">
+        {streaming ? (
+          <div className={`whitespace-pre-wrap${streaming ? ' streaming-cursor' : ''}`}>
+            {content}
           </div>
+        ) : (
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (role === 'tool') {
+    const isFolded = folded ?? false;
+
+    return (
+      <button
+        type="button"
+        className="ml-3 w-full cursor-pointer border-none bg-transparent p-0 text-left font-mono text-[11px] text-[#555]"
+        onClick={() => onToggleToolFold(message.id)}
+        title={isFolded ? 'Expand tool call' : 'Collapse tool call'}
+      >
+        <div
+          className={`overflow-hidden transition-[max-height] duration-200 ease-in-out ${isFolded ? 'max-h-5' : 'max-h-96'}`}
+        >
+          {isFolded ? (
+            <span>▸ {toolName}</span>
+          ) : (
+            <div className="whitespace-pre-wrap">
+              <span className="font-semibold">▾ {toolName}</span>
+              <div className="mt-0.5 whitespace-pre-wrap">{JSON.stringify(toolArgs, null, 2)}</div>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className={`whitespace-pre-wrap${streaming ? ' streaming-cursor' : ''}`}>
-          {content}
-        </div>
-      )}
-    </div>
-  );
+      </button>
+    );
+  }
+
+  if (role === 'error') {
+    return <div className="text-red-400 leading-normal break-words">{content}</div>;
+  }
+
+  return <div className="leading-normal break-words">{content}</div>;
 }

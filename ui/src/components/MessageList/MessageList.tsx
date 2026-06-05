@@ -7,10 +7,16 @@ interface MessageListProps {
   messages: ChatMessage[];
   onSuggestion: (text: string) => void;
   onConfirm: (toolCallId: string, confirmed: boolean) => void;
+  onToggleToolFold: (id: string) => void;
 }
 
 /** Scrollable list of chat messages with auto-scroll on new content. */
-export function MessageList({ messages, onSuggestion, onConfirm }: MessageListProps) {
+export function MessageList({
+  messages,
+  onSuggestion,
+  onConfirm,
+  onToggleToolFold,
+}: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,11 +24,18 @@ export function MessageList({ messages, onSuggestion, onConfirm }: MessageListPr
   }, [messages]);
 
   return (
-    <div className="messages-scroll flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5">
+    <div className="messages-scroll flex flex-1 flex-col gap-2 overflow-y-auto p-2">
       {messages.length === 0 ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (
-        messages.map((m) => <MessageBubble key={m.id} message={m} onConfirm={onConfirm} />)
+        messages.map((m) => (
+          <MessageBubble
+            key={m.id}
+            message={m}
+            onConfirm={onConfirm}
+            onToggleToolFold={onToggleToolFold}
+          />
+        ))
       )}
       <div ref={bottomRef} />
     </div>

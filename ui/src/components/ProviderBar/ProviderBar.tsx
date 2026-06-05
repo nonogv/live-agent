@@ -1,3 +1,4 @@
+import { Activity, Bug, Code2, Trash2 } from 'lucide-react';
 import type { ConfirmMode, ProvidersRegistry } from '../../types';
 
 const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
@@ -5,6 +6,9 @@ const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
   { value: 'guard', label: 'Guard', title: 'Ask only before destructive operations (default)' },
   { value: 'off', label: 'Auto', title: 'Run all tools without asking' },
 ];
+
+const ICON_BTN =
+  'flex cursor-pointer items-center justify-center rounded-default border-none p-1 transition-colors hover:bg-surface2 hover:text-text';
 
 interface ProviderBarProps {
   providers: ProvidersRegistry;
@@ -37,7 +41,7 @@ export function ProviderBar({
   onClear,
 }: ProviderBarProps) {
   return (
-    <div className="flex shrink-0 items-center gap-1.5 border-b border-border bg-surface px-3.5 py-[7px]">
+    <div className="flex shrink-0 items-center gap-1.5 border-b border-border bg-surface px-2 py-1.5">
       <select
         className="cursor-pointer rounded-default border border-border bg-surface2 px-1.5 py-0.5 text-[12px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         value={provider}
@@ -63,11 +67,11 @@ export function ProviderBar({
       </select>
 
       <button
-        className={`cursor-pointer rounded-default border-none px-1.5 py-0.5 text-[11px] transition-colors hover:bg-surface2 hover:text-text ${debugMode ? 'text-accent' : 'text-text-dim'}`}
+        className={`${ICON_BTN} ${debugMode ? 'text-accent' : 'text-text-dim'}`}
         onClick={onToggleDebug}
         title="Show tool calls in chat"
       >
-        Tools
+        {debugMode ? <Bug size={14} /> : <Code2 size={14} />}
       </button>
 
       <div
@@ -88,19 +92,19 @@ export function ProviderBar({
       </div>
 
       <button
-        className="cursor-pointer rounded-default border-none px-1.5 py-0.5 text-[11px] text-text-dim transition-colors hover:bg-surface2 hover:text-text"
+        className={`${ICON_BTN} text-text-dim`}
         onClick={onDiagnose}
         title="Run environment diagnostics"
       >
-        Diagnose
+        <Activity size={14} />
       </button>
 
       <button
-        className="ml-auto cursor-pointer rounded-default border-none px-1.5 py-0.5 text-[11px] text-text-dim transition-colors hover:bg-surface2 hover:text-text"
+        className={`${ICON_BTN} ml-auto text-text-dim`}
         onClick={onClear}
         title="Clear conversation"
       >
-        Clear
+        <Trash2 size={14} />
       </button>
     </div>
   );
