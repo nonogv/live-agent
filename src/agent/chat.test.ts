@@ -8,13 +8,32 @@ const emptyMixer = {
   sends: [],
 };
 
+const emptyClip = (overrides: Partial<LiveState['tracks'][0]['sessionClips'][0]> = {}) => ({
+  id: 'c1',
+  name: 'Clip',
+  slotIndex: 0,
+  startTime: 0,
+  endTime: 4,
+  duration: 4,
+  startMarker: 0,
+  endMarker: 4,
+  loopStart: 0,
+  loopEnd: 4,
+  color: 0,
+  looping: false,
+  muted: false,
+  ...overrides,
+});
+
 const emptyTrack = (overrides: Partial<TrackInfo> = {}): TrackInfo => ({
   id: '1',
   name: 'Track',
   type: 'midi',
   mute: false,
   solo: false,
+  mutedViaSolo: false,
   arm: false,
+  groupTrackId: null,
   mixer: emptyMixer,
   devices: [],
   sessionClips: [],
@@ -29,6 +48,8 @@ const emptyState: LiveState = {
   scaleName: 'Major',
   scaleMode: false,
   scaleIntervals: [0, 2, 4, 5, 7, 9, 11],
+  gridQuantization: 6,
+  gridIsTriplet: false,
   trackCount: 0,
   tracks: [],
   mainTrack: { id: 'main', mixer: emptyMixer },
@@ -125,7 +146,15 @@ describe('buildSystemPrompt', () => {
               id: '10',
               name: 'Analog',
               parameters: [
-                { id: '20', name: 'Volume', value: 0.8, min: 0, max: 1, defaultValue: 0.85 },
+                {
+                  id: '20',
+                  name: 'Volume',
+                  value: 0.8,
+                  min: 0,
+                  max: 1,
+                  defaultValue: 0.85,
+                  isQuantized: false,
+                },
               ],
             },
           ],
@@ -148,15 +177,16 @@ describe('buildSystemPrompt', () => {
           id: '1',
           name: 'Bass',
           sessionClips: [
-            {
+            emptyClip({
               id: '55',
               name: 'Bass Loop',
-              slotIndex: 0,
               duration: 16,
+              endTime: 16,
+              endMarker: 16,
+              loopEnd: 16,
               looping: true,
-              muted: false,
               notes: [{ pitch: 40, startTime: 0, duration: 0.25, velocity: 100 }],
-            },
+            }),
           ],
         }),
       ],
@@ -172,7 +202,9 @@ describe('buildSystemPrompt', () => {
   it('lists scenes and cue points', () => {
     const state: LiveState = {
       ...emptyState,
-      scenes: [{ id: 's1', name: 'Verse', tempo: 120 }],
+      scenes: [
+        { id: 's1', name: 'Verse', tempo: 120, signatureNumerator: 4, signatureDenominator: 4 },
+      ],
       cuePoints: [{ id: 'cp1', name: 'Drop', time: 32 }],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
@@ -206,17 +238,14 @@ describe('buildSystemPrompt', () => {
           name: 'Drums',
           type: 'audio',
           sessionClips: [
-            {
+            emptyClip({
               id: '77',
               name: 'Kick Loop',
-              slotIndex: 0,
-              duration: 4,
               looping: true,
-              muted: false,
               filePath: '/samples/kick.wav',
               warping: true,
               warpMode: 0,
-            },
+            }),
           ],
         }),
       ],
@@ -229,7 +258,9 @@ describe('buildSystemPrompt', () => {
   it('explains scene tempo -1 inherits song tempo', () => {
     const state: LiveState = {
       ...emptyState,
-      scenes: [{ id: 's1', name: 'Intro', tempo: -1 }],
+      scenes: [
+        { id: 's1', name: 'Intro', tempo: -1, signatureNumerator: 4, signatureDenominator: 4 },
+      ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('-1bpm');

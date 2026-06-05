@@ -13,7 +13,7 @@ Goal: a polished, stable experience for developer-musicians who build from sourc
 - Provider / model UX — default to cheapest/free model, settings as closable popup
 - UI polish — error state styling, foldable tool-call blocks, diagnostic bubble
 - Stability — double-click-to-open issue, history loss on errored rebuild
-- SDK completeness audit — verify full coverage and generator robustness
+- ~~SDK completeness audit — verify full coverage and generator robustness~~ ([#13](https://github.com/nonogv/live-agent/issues/13))
 - Manual QA — OpenAI and Gemini end-to-end test sign-off
 
 **Won't do (for now):** in-extension undo / checkpoints. Live's native **⌘Z** already reverts each agent tool step. Revisit if the SDK exposes programmatic undo.
