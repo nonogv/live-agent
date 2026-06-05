@@ -2,8 +2,12 @@ import { initialize, type ActivationContext } from '@ableton-extensions/sdk';
 import { Storage } from './storage.js';
 import { startServer } from './server.js';
 
-/** Modal dialog dimensions (width × height in pixels). */
-const DIALOG_WIDTH = 520;
+/**
+ * Modal dialog dimensions (width × height in pixels).
+ * The SDK `showModalDialog` API only accepts fixed pixel sizes — no percentage
+ * width or user-resizable chrome. 600px width is the target for ~40% on typical displays.
+ */
+const DIALOG_WIDTH = 600;
 const DIALOG_HEIGHT = 820;
 
 export const activate = (activation: ActivationContext): void => {

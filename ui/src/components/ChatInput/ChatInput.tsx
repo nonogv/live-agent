@@ -41,7 +41,7 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
     <div className="flex shrink-0 items-end gap-3 border-t border-border bg-surface px-4 py-3">
       <textarea
         ref={textareaRef}
-        className="min-h-10 max-h-[140px] flex-1 resize-none overflow-y-auto rounded-default border border-border bg-surface2 px-3 py-2.5 text-[15px] leading-snug text-text outline-none placeholder:text-text-dim focus:outline focus:outline-1 focus:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
+        className="min-h-10 max-h-[140px] flex-1 resize-none overflow-y-auto rounded-default border border-border bg-surface2 px-3 py-2.5 text-[14px] leading-snug text-text outline-none placeholder:text-text-dim focus:outline focus:outline-1 focus:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
         placeholder="Message Live Agent…"
         rows={1}
         disabled={disabled}

@@ -18,7 +18,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
 
   if (role === 'confirm' && toolCallId) {
     return (
-      <div className="ml-2 font-mono text-[13px] text-text-dim">
+      <div className="ml-2 font-mono text-[12px] text-text-dim">
         <div className="whitespace-pre-wrap">
           <span className="font-semibold text-[#7ab0d4]">⚠ {toolName}</span>
           <div className="mt-0.5 whitespace-pre-wrap text-text-dim">
@@ -63,7 +63,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
             {content}
           </div>
         ) : (
-          <div className="prose prose-invert prose-base max-w-none">
+          <div className="prose prose-invert prose-sm max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
         )}
@@ -77,7 +77,7 @@ export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageB
     return (
       <button
         type="button"
-        className="ml-3 w-full cursor-pointer border-none bg-transparent p-0 text-left font-mono text-[13px] text-[#555]"
+        className="ml-3 w-full cursor-pointer border-none bg-transparent p-0 text-left font-mono text-[12px] text-[#555]"
         onClick={() => onToggleToolFold(message.id)}
         title={isFolded ? 'Expand tool call' : 'Collapse tool call'}
       >

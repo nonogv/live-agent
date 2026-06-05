@@ -43,7 +43,7 @@ export function ProviderBar({
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-b border-border bg-surface px-4 py-3">
       <select
-        className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[14px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+        className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         value={provider}
         onChange={(e) => onProviderChange(e.target.value)}
       >
@@ -55,7 +55,7 @@ export function ProviderBar({
       </select>
 
       <select
-        className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[14px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+        className="cursor-pointer rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         value={model}
         onChange={(e) => onModelChange(e.target.value)}
       >
@@ -82,7 +82,7 @@ export function ProviderBar({
         {CONFIRM_MODES.map(({ value, label, title }, index) => (
           <button
             key={value}
-            className={`cursor-pointer border-none px-2.5 py-1 text-[13px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
+            className={`cursor-pointer border-none px-2.5 py-1 text-[12px] transition-colors hover:bg-surface2 hover:text-text ${index > 0 ? 'border-l border-border' : ''} ${confirmMode === value ? 'bg-surface2 text-accent' : 'text-text-dim'}`}
             onClick={() => onSetConfirmMode(value)}
             title={title}
           >

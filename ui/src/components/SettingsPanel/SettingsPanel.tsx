@@ -49,7 +49,7 @@ export function SettingsPanel({
         <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
           API Keys
         </h2>
-        <p className="mb-4 text-[14px] leading-normal text-text-dim">
+        <p className="mb-4 text-[13px] leading-normal text-text-dim">
           Keys are stored locally in Live&apos;s extension storage and never leave your computer.
           Get keys from{' '}
           <a
@@ -90,12 +90,12 @@ export function SettingsPanel({
       </div>
 
       <button
-        className="w-full cursor-pointer rounded-default border-none bg-accent py-2.5 text-[15px] font-semibold text-white transition-colors hover:bg-accent-hover"
+        className="w-full cursor-pointer rounded-default border-none bg-accent py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-accent-hover"
         onClick={handleSave}
       >
         Save Settings
       </button>
-      <div className="mt-3 min-h-[20px] text-center text-[14px] text-[#6abf6a]">{feedback}</div>
+      <div className="mt-3 min-h-[20px] text-center text-[13px] text-[#6abf6a]">{feedback}</div>
     </div>
   );
 }

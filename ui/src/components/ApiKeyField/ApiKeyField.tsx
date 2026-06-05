@@ -26,19 +26,19 @@ export function ApiKeyField({ providerId, label, placeholder, isSet, onClear }: 
       <div
         className={`h-2.5 w-2.5 shrink-0 rounded-full ${isSet ? 'bg-[#6abf6a]' : 'bg-border'}`}
       />
-      <label className="flex-1 text-[14px]" htmlFor={`key-${providerId}`}>
+      <label className="flex-1 text-[13px]" htmlFor={`key-${providerId}`}>
         {label}
       </label>
       <input
         ref={inputRef}
         id={`key-${providerId}`}
-        className="flex-[2] rounded-default border border-border bg-surface2 px-2.5 py-2 text-[14px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+        className="flex-[2] rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
         type="password"
         placeholder={isSet ? '••••••••' : placeholder}
         autoComplete="off"
       />
       <button
-        className="shrink-0 cursor-pointer rounded-default border border-border px-2 py-1 text-[13px] text-text-dim hover:border-[#e05555] hover:text-[#e05555]"
+        className="shrink-0 cursor-pointer rounded-default border border-border px-2 py-1 text-[12px] text-text-dim hover:border-[#e05555] hover:text-[#e05555]"
         onClick={handleClear}
         title="Clear key"
       >
