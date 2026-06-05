@@ -10,9 +10,10 @@ This file captures the high-level direction. See [`CHANGELOG.md`](./CHANGELOG.md
 
 Goal: a polished, stable experience for developer-musicians who build from source and bring their own API key.
 
-- Provider / model UX — default to cheapest/free model, settings as closable popup
-- UI polish — error state styling, foldable tool-call blocks, diagnostic bubble
-- Stability — double-click-to-open issue, history loss on errored rebuild
+- ~~Provider / model UX — default to cheapest/free model, settings as closable popup~~ ([#49](https://github.com/nonogv/live-agent/issues/49), [#54](https://github.com/nonogv/live-agent/issues/54))
+- ~~UI polish — error state styling, foldable tool-call blocks, diagnostic bubble~~ ([#53](https://github.com/nonogv/live-agent/issues/53), [#56](https://github.com/nonogv/live-agent/issues/56), [#57](https://github.com/nonogv/live-agent/issues/57))
+- ~~Stability — double-click-to-open issue, history loss on errored rebuild~~ ([#51](https://github.com/nonogv/live-agent/issues/51), [#52](https://github.com/nonogv/live-agent/issues/52))
+- ~~LLM token economy~~ ([#55](https://github.com/nonogv/live-agent/issues/55))
 - ~~SDK completeness audit — verify full coverage and generator robustness~~ ([#13](https://github.com/nonogv/live-agent/issues/13))
 - Manual QA — OpenAI and Gemini end-to-end test sign-off
 

@@ -9,9 +9,26 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+---
+
+## [0.2.1-alpha.1] — 2026-06-05
+
+### Added
+- **SDK coverage audit** — automated `sdk-coverage` test fails when SDK methods lack tools; 45 generated tools + `get_live_state` with zero gaps ([#13](https://github.com/nonogv/live-agent/issues/13))
+- **`drum_chain_set_receiving_note` tool** — exposes `DrumChain.receivingNote` setter
+- **Richer `get_live_state`** — song grid settings, track solo-mute/group, clip markers/loop/color, audio warp markers, scene time signature, parameter quantization, drum chain receiving note, take-lane clips
+- **History pruning** — drops oldest assistant+tool pairs when history exceeds 40 entries, preserving all user messages ([#55](https://github.com/nonogv/live-agent/issues/55))
+- **Modal open guard** — deduplicates concurrent `showModalDialog` calls; command registers synchronously at activate ([#51](https://github.com/nonogv/live-agent/issues/51))
+- **Settings overlay** — closable popup above chat with backdrop dismiss ([#49](https://github.com/nonogv/live-agent/issues/49))
+- **Diagnostic info bubble** — sky-blue styled output with Info icon ([#57](https://github.com/nonogv/live-agent/issues/57))
+- **Tool visibility toggle** — debug off hides existing tool-call blocks ([#56](https://github.com/nonogv/live-agent/issues/56))
+
 ### Fixed
-- System prompt token reduction: device parameter lists, inline MIDI notes, and full audio paths removed from the overview; the LLM calls `get_live_state` when it needs detail
-- HTTP 429 rate-limit errors now trigger an automatic retry after the delay specified in the Gemini response (`retryDelay` field)
+- Session history now persists even when the last turn errors ([#52](https://github.com/nonogv/live-agent/issues/52))
+- System prompt token reduction: arrangement clip count hint, mixer send IDs removed from overview ([#55](https://github.com/nonogv/live-agent/issues/55))
+- HTTP 429 rate-limit errors trigger automatic retry after Gemini `retryDelay`
+- Blinking orange cursor clears on API errors; error bubbles pulse briefly then settle ([#53](https://github.com/nonogv/live-agent/issues/53))
+- Default provider/model now cheapest per provider; first launch defaults to Gemini Flash-Lite ([#54](https://github.com/nonogv/live-agent/issues/54))
 
 ---
 
