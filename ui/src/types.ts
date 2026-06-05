@@ -1,6 +1,14 @@
 /** All message roles that can appear in the chat panel. */
 export type MessageRole = 'user' | 'agent' | 'tool' | 'error' | 'confirm';
 
+/**
+ * Confirmation mode for tool calls:
+ * - review  — ask before every tool call
+ * - guard   — ask only before destructive operations (default)
+ * - off     — never ask, run everything automatically
+ */
+export type ConfirmMode = 'review' | 'guard' | 'off';
+
 /** A single message in the chat history. */
 export interface ChatMessage {
   id: string;
@@ -74,5 +82,5 @@ export type ClientMessage =
   | { type: 'open_url'; url: string }
   | { type: 'console_log'; level: string; message: string }
   | { type: 'debug'; provider: string; model: string }
-  | { type: 'set_autopilot'; enabled: boolean }
+  | { type: 'set_confirm_mode'; mode: ConfirmMode }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string };

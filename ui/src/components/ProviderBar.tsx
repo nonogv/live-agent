@@ -1,5 +1,11 @@
 import styles from './ProviderBar.module.scss';
-import type { ProvidersRegistry } from '../types';
+import type { ConfirmMode, ProvidersRegistry } from '../types';
+
+const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
+  { value: 'review', label: 'Review', title: 'Ask before every tool call' },
+  { value: 'guard', label: 'Guard', title: 'Ask only before destructive operations (default)' },
+  { value: 'off', label: 'Auto', title: 'Run all tools without asking' },
+];
 
 interface ProviderBarProps {
   providers: ProvidersRegistry;
@@ -7,11 +13,11 @@ interface ProviderBarProps {
   model: string;
   models: { id: string; label: string }[];
   debugMode: boolean;
-  autopilot: boolean;
+  confirmMode: ConfirmMode;
   onProviderChange: (p: string) => void;
   onModelChange: (m: string) => void;
   onToggleDebug: () => void;
-  onToggleAutopilot: () => void;
+  onSetConfirmMode: (mode: ConfirmMode) => void;
   onDiagnose: () => void;
   onClear: () => void;
 }
@@ -23,11 +29,11 @@ export function ProviderBar({
   model,
   models,
   debugMode,
-  autopilot,
+  confirmMode,
   onProviderChange,
   onModelChange,
   onToggleDebug,
-  onToggleAutopilot,
+  onSetConfirmMode,
   onDiagnose,
   onClear,
 }: ProviderBarProps) {
@@ -65,13 +71,19 @@ export function ProviderBar({
         Tools
       </button>
 
-      <button
-        className={`${styles.btn}${autopilot ? ` ${styles.active}` : ''}`}
-        onClick={onToggleAutopilot}
-        title="Skip confirmation for destructive actions"
-      >
-        Autopilot
-      </button>
+      {/* Three-way confirm mode segmented control */}
+      <div className={styles.segmented} role="group" aria-label="Confirmation mode">
+        {CONFIRM_MODES.map(({ value, label, title }) => (
+          <button
+            key={value}
+            className={`${styles.seg}${confirmMode === value ? ` ${styles.active}` : ''}`}
+            onClick={() => onSetConfirmMode(value)}
+            title={title}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <button className={styles.btn} onClick={onDiagnose} title="Run environment diagnostics">
         Diagnose
