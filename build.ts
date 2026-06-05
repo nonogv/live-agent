@@ -32,4 +32,4 @@ await esbuild.build({
 });
 
 // Build the React UI with Vite
-execSync('npx vite build', { cwd: path.resolve('ui'), stdio: 'inherit' });
+execSync('npx vite build --config ui/vite.config.ts', { stdio: 'inherit' });

@@ -1,4 +1,9 @@
-@import 'tailwindcss';
+@import 'tailwindcss/theme.css';
+@import 'tailwindcss/preflight.css';
+@import 'tailwindcss/utilities.css';
+
+/* Scan UI sources — required for @tailwindcss/vite content detection */
+@source '../src/**/*.{ts,tsx}';
 
 @theme {
   --color-surface: #1a1a1a;
@@ -9,7 +14,23 @@
   --color-text-dim: #888888;
   --color-accent: #e56a00;
   --color-accent-hover: #ff7a14;
+  --color-red-400: #f87171;
   --radius-default: 4px;
+}
+
+/* Fallback tokens for embedded webviews that skip @theme/@layer blocks */
+:root {
+  --color-surface: #1a1a1a;
+  --color-surface2: #222222;
+  --color-surface3: #2a2a2a;
+  --color-border: #383838;
+  --color-text: #e8e8e8;
+  --color-text-dim: #888888;
+  --color-accent: #e56a00;
+  --color-accent-hover: #ff7a14;
+  --color-red-400: #f87171;
+  --radius-default: 4px;
+  --spacing: 0.25rem;
 }
 
 *,
