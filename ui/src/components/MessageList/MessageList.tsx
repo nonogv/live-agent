@@ -29,11 +29,17 @@ export function MessageList({
       {messages.length === 0 ? (
         <EmptyState onSuggestion={onSuggestion} />
       ) : (
-        messages.map((m, index) => (
-          <div key={m.id} className={messageTopMargin(index, messages)}>
-            <MessageBubble message={m} onConfirm={onConfirm} onToggleToolFold={onToggleToolFold} />
-          </div>
-        ))
+        messages
+          .filter((m) => !m.hidden)
+          .map((m, index, visible) => (
+            <div key={m.id} className={messageTopMargin(index, visible)}>
+              <MessageBubble
+                message={m}
+                onConfirm={onConfirm}
+                onToggleToolFold={onToggleToolFold}
+              />
+            </div>
+          ))
       )}
       <div ref={bottomRef} />
     </div>

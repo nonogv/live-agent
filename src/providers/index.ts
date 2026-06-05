@@ -71,7 +71,7 @@ export const PROVIDERS = {
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
       { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
     ],
-    default: 'claude-sonnet-4-6',
+    default: 'claude-haiku-4-5',
   },
   gemini: {
     label: 'Google Gemini',
@@ -80,7 +80,7 @@ export const PROVIDERS = {
       { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (preview)' },
       { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite' },
     ],
-    default: 'gemini-3.5-flash',
+    default: 'gemini-3.1-flash-lite',
   },
 } as const;
 

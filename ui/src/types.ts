@@ -1,5 +1,5 @@
 /** All message roles that can appear in the chat panel. */
-export type MessageRole = 'user' | 'agent' | 'tool' | 'error' | 'confirm';
+export type MessageRole = 'user' | 'agent' | 'tool' | 'error' | 'confirm' | 'diagnostic';
 
 /**
  * Confirmation mode for tool calls:
@@ -25,6 +25,8 @@ export interface ChatMessage {
   streaming?: boolean;
   /** Whether a tool message is collapsed to a one-liner. */
   folded?: boolean;
+  /** When true the message is omitted from the chat list (e.g. hidden tool calls). */
+  hidden?: boolean;
 }
 
 /** A single model entry within a provider. */
@@ -37,6 +39,8 @@ export interface ModelEntry {
 export interface ProviderEntry {
   label: string;
   models: ModelEntry[];
+  /** Cheapest/free default model for this provider. */
+  default: string;
 }
 
 /** The full provider/model registry. */

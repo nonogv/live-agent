@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { ApiKeyField, getKeyInputValue } from '../ApiKeyField';
 import type { ProvidersRegistry, SettingsPayload } from '../../types';
 
@@ -8,6 +9,7 @@ interface SettingsPanelProps {
   onSave: (payload: { keys: Record<string, string> }) => void;
   onClearKey: (provider: string) => void;
   onOpenUrl: (url: string) => void;
+  onClose: () => void;
 }
 
 const KEY_PLACEHOLDERS: Record<string, string> = {
@@ -25,6 +27,7 @@ export function SettingsPanel({
   onSave,
   onClearKey,
   onOpenUrl,
+  onClose,
 }: SettingsPanelProps) {
   const [feedback, setFeedback] = useState('');
 
@@ -44,11 +47,23 @@ export function SettingsPanel({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-8 py-6">
+    <div className="flex flex-1 flex-col overflow-y-auto px-8 py-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-[13px] font-bold uppercase tracking-wide text-text-dim">Settings</h2>
+        <button
+          type="button"
+          className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-default border-none bg-transparent p-0 text-text-dim transition-colors hover:bg-surface2 hover:text-text"
+          onClick={onClose}
+          title="Close settings"
+          aria-label="Close settings"
+        >
+          <X size={16} />
+        </button>
+      </div>
       <div className="mb-6">
-        <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
+        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
           API Keys
-        </h2>
+        </h3>
         <p className="mb-4 text-[13px] leading-normal text-text-dim">
           Keys are stored locally in Live&apos;s extension storage and never leave your computer.
           Get keys from{' '}
