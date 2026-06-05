@@ -408,9 +408,37 @@ function buildAnthropicMessages(messages: ProviderMsg[]): unknown[] {
 }
 
 function buildGeminiContents(messages: ProviderMsg[]): unknown[] {
-  return messages.map((m) => {
+  // Gemini thinking models require every functionCall to carry a thought_signature.
+  // History entries from older sessions or non-thinking runs won't have it.
+  // Build an allow-list of tool-call IDs that do have a signature; skip the rest
+  // (both the call and its paired result) to avoid INVALID_ARGUMENT errors.
+  const validIds = new Set<string>();
+  for (const m of messages) {
+    if (m.role === 'assistant' && m.toolCall?.id && m.toolCall.thoughtSignature) {
+      validIds.add(m.toolCall.id);
+    }
+  }
+
+  const result: unknown[] = [];
+  for (const m of messages) {
+    if (m.role === 'assistant' && m.toolCall) {
+      if (!m.toolCall.thoughtSignature) {
+        // No signature — keep any text the assistant said, but drop the call.
+        if (m.content) result.push({ role: 'model', parts: [{ text: m.content }] });
+        continue;
+      }
+      const fc: Record<string, unknown> = {
+        name: m.toolCall.name,
+        args: m.toolCall.args,
+        thought_signature: m.toolCall.thoughtSignature,
+      };
+      result.push({ role: 'model', parts: [{ functionCall: fc }] });
+      continue;
+    }
     if (m.role === 'tool') {
-      return {
+      // Skip results whose call was dropped above.
+      if (m.toolCallId && !validIds.has(m.toolCallId)) continue;
+      result.push({
         role: 'user',
         parts: [
           {
@@ -420,13 +448,10 @@ function buildGeminiContents(messages: ProviderMsg[]): unknown[] {
             },
           },
         ],
-      };
+      });
+      continue;
     }
-    if (m.role === 'assistant' && m.toolCall) {
-      const fc: Record<string, unknown> = { name: m.toolCall.name, args: m.toolCall.args };
-      if (m.toolCall.thoughtSignature) fc['thought_signature'] = m.toolCall.thoughtSignature;
-      return { role: 'model', parts: [{ functionCall: fc }] };
-    }
-    return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] };
-  });
+    result.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] });
+  }
+  return result;
 }

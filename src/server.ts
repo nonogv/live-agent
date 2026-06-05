@@ -249,18 +249,23 @@ async function handleChat(
     const provider = createProvider(providerId, apiKey);
     const song = getSong();
 
+    // Build the system prompt once per user message. We keep it constant so that
+    // Gemini thinking-model thought_signatures (which are tied to the session
+    // context) remain valid across rounds. The handle registry is refreshed each
+    // round separately (see below) so tool calls always resolve current handles.
+    const systemPrompt = buildSystemPrompt(await getLiveState(song), ALL_TOOL_SCHEMAS);
+
     // Agentic loop: keep calling the provider until it returns a final text
     // response with no tool calls (max 10 rounds as a safety net).
-    // The system prompt (and handle registry) is refreshed before every round so
-    // the LLM always sees the live session state — critical when multi-step
-    // operations delete or create tracks/clips between rounds.
     const MAX_ROUNDS = 10;
     let round = 0;
 
     while (round < MAX_ROUNDS) {
       round++;
-      const liveState = await getLiveState(song);
-      const systemPrompt = buildSystemPrompt(liveState, ALL_TOOL_SCHEMAS);
+      // Refresh handle registry so every round resolves the CURRENT Live objects.
+      // We discard the returned state (system prompt is built only once) — the
+      // important side-effect is clearRegistry() + re-registering all handles.
+      if (round > 1) await getLiveState(song);
       let assistantContent = '';
       let hadToolCall = false;
 
