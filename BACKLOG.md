@@ -17,7 +17,6 @@ Core loop validated ✅ — multi-step tool use, MIDI note generation, device in
 - `get_live_state` with tracks, mixer, devices + parameters, session/arrangement clips + MIDI notes, scenes, cue points, take lanes, main track
 - Three-way confirmation mode: **Review** / **Guard** / **Auto**
 - Conversation persistence (load/save across restarts, clear button)
-- Checkpoint system — `withinTransaction` integration, ⌘Z revert hint (#20–#23)
 - Prettier + ESLint + Husky + GitHub Actions CI
 - Gemini HTTP error surfacing + functionResponse.name fix
 - `lucide-react` installed
@@ -36,9 +35,15 @@ Remaining work clusters into five areas:
 
 ---
 
+## Won't do (for now)
+
+- **In-extension undo / checkpoints (#20–#23)** — Live's native **⌘Z / undo** already reverts each agent tool step. No custom checkpoint UI or `Song.undo()` integration until the Extensions SDK exposes programmatic undo (or we have a compelling reason to rebuild what Live already does). Closing the agent dialog to reach Live's undo is acceptable for v1.
+
+---
+
 ## v2 — Power features (#24–#29)
 
-Consumer installer, producer rules, @mentions, local models, SDK auto-sync, multi-point checkpoints.
+Consumer installer, producer rules, @mentions, local models, SDK auto-sync. Multi-point checkpoint history (#29) remains deferred — same rationale as #20–#23 unless SDK or UX constraints change.
 
 ---
 

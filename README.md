@@ -97,6 +97,8 @@ Layout (top to bottom):
 
 The panel toggle swaps between chat and settings; chat-only controls hide while you are on Settings.
 
+**Undo:** Agent changes are ordinary Live edits — use **⌘Z** (or Live's Edit → Undo) in the main Live window to revert them, typically one step per tool action. There is no in-panel undo button; dismiss or move focus away from the agent dialog if you need to reach Live's undo stack.
+
 ## Development
 
 ```bash

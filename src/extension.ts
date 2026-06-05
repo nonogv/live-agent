@@ -19,11 +19,7 @@ export const activate = (activation: ActivationContext): void => {
     const storageDir = context.environment.storageDirectory ?? '.';
     const storage = new Storage(storageDir);
 
-    const server = await startServer(
-      () => context.application.song,
-      storage,
-      (cb) => context.withinTransaction(cb),
-    );
+    const server = await startServer(() => context.application.song, storage);
 
     // Register the "Open Live Agent" command
     context.commands.registerCommand('live-agent.open', () => {

@@ -16,10 +16,6 @@ const ICON_BTN =
 export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageBubbleProps) {
   const { role, content, streaming, toolName, toolArgs, toolCallId, folded } = message;
 
-  if (role === 'hint') {
-    return <div className="text-center text-[11px] text-[#444]">{content}</div>;
-  }
-
   if (role === 'confirm' && toolCallId) {
     return (
       <div className="ml-2 font-mono text-[12px] text-text-dim">

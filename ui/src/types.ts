@@ -1,5 +1,5 @@
 /** All message roles that can appear in the chat panel. */
-export type MessageRole = 'user' | 'agent' | 'tool' | 'error' | 'confirm' | 'hint';
+export type MessageRole = 'user' | 'agent' | 'tool' | 'error' | 'confirm';
 
 /**
  * Confirmation mode for tool calls:
@@ -58,7 +58,6 @@ export type ServerMessage =
   | { type: 'stream_start' }
   | { type: 'stream_chunk'; text: string }
   | { type: 'stream_end' }
-  | { type: 'turn_committed' }
   | { type: 'tool_start'; name: string; args: unknown }
   | { type: 'tool_result'; name: string; result: unknown }
   | { type: 'confirm_request'; toolCallId: string; toolName: string; args: unknown }
