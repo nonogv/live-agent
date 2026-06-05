@@ -144,7 +144,7 @@ ui/src/                    # React + Vite webview (built to dist/ui/)
 >
 > Current state: `0.2.0-alpha.1` — developer preview, not publicly released.
 
-For the full issue-level backlog see [`BACKLOG.md`](./BACKLOG.md) and the [GitHub Project board](https://github.com/users/nonogv/projects/2).
+See [`ROADMAP.md`](./ROADMAP.md) for milestones, [`CHANGELOG.md`](./CHANGELOG.md) for what shipped, and the [GitHub Project board](https://github.com/users/nonogv/projects/2) for open issues.
 
 **Shipped (alpha)**
 

@@ -2,6 +2,8 @@
 
 This file is the source of truth for development standards. All AI assistant configs (`.cursor/rules/`, `.github/copilot-instructions.md`) reference this document.
 
+Related files: [`ROADMAP.md`](./ROADMAP.md) — high-level milestones | [`CHANGELOG.md`](./CHANGELOG.md) — version history
+
 ---
 
 ## Philosophy
@@ -99,7 +101,7 @@ We follow [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH[-prerele
 - **MAJOR** — breaking changes or a significant milestone release (`1.0.0`)
 - **Pre-release suffixes** — `alpha` → `beta` → `rc` before stable (`1.0.0-alpha.1`, `1.0.0-beta.2`, `1.0.0-rc.1`)
 
-Current track: `0.x` is the developer preview. `1.0.0` is the v1 developer release (see `BACKLOG.md`).
+Current track: `0.x` is the developer preview. `1.0.0` is the v1 developer release (see `ROADMAP.md`).
 
 Bump the version in `package.json` as part of the commit that represents the milestone — not in a separate commit. Tag the release in git: `git tag v0.2.0`.
 
@@ -113,9 +115,9 @@ Every meaningful change must include:
 - [ ] **JSDoc** — exported symbols are documented
 - [ ] **Format check** — run `npm run format:check` (or `npm run format` to auto-fix)
 - [ ] **Lint** — run `npm run lint` and fix any errors before committing
-- [ ] **README update** — if the change affects setup, capabilities, or public-facing behavior
-- [ ] **BACKLOG update** — tick completed tasks, move newly discovered issues to the right milestone, and remove items that are no longer relevant. The backlog is the single source of truth for project status — stale entries are worse than no entries.
-- [ ] **Version bump** — if the change crosses a milestone (patch/minor/major); tag the release
+- [ ] **README update** — if the change affects setup, capabilities, or public-facing behaviour
+- [ ] **CHANGELOG update** — add an entry under `[Unreleased]` describing what changed and why. Use the `Added / Changed / Fixed / Removed` categories from [Keep a Changelog](https://keepachangelog.com). When a version is tagged, move the unreleased entries under the new version heading.
+- [ ] **Version bump** — if the change crosses a milestone (patch/minor/major); tag the release and promote `[Unreleased]` in `CHANGELOG.md` to the new version
 
 Generated files (`src/agent/generated-tools.ts`, `src/live/generated-executor.ts`) are exempt from manual JSDoc — they are produced by `npm run generate` and should not be edited by hand.
 
@@ -123,7 +125,7 @@ Generated files (`src/agent/generated-tools.ts`, `src/live/generated-executor.ts
 
 ## Undo / checkpoints (out of scope for now)
 
-Issues **#20–#23** are **won't do** for v1. Live's built-in undo (**⌘Z**) already reverts agent tool steps; we are not building in-extension checkpoint UI or calling `Song.undo()` until the Extensions SDK exposes programmatic undo. See `BACKLOG.md` → *Won't do (for now)*.
+In-extension undo / checkpoints are **won't do** for v1. Live's built-in undo (**⌘Z**) already reverts agent tool steps; we are not building in-extension checkpoint UI or calling `Song.undo()` until the Extensions SDK exposes programmatic undo. See `ROADMAP.md` → *Won't do (for now)*.
 
 ---
 
@@ -149,7 +151,7 @@ npm run test:watch # watch mode
 feat: short description     # new capability
 fix: short description      # bug fix
 chore: short description    # tooling, deps, config
-docs: short description     # README, JSDoc, BACKLOG
+docs: short description     # README, CHANGELOG, ROADMAP, JSDoc
 test: short description     # tests only
 ```
 
