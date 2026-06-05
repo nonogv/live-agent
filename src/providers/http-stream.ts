@@ -59,6 +59,17 @@ async function* streamLines(opts: ReqOptions): AsyncGenerator<string> {
 
     res.on('end', () => {
       if (buf) lines.push(buf);
+
+      const status = res.statusCode ?? 0;
+      if (status < 200 || status >= 300) {
+        // Collect everything buffered so far into a readable error message.
+        const body = lines
+          .join('\n')
+          .replace(/^data: /gm, '')
+          .trim();
+        error = new Error(`HTTP ${status}: ${body.slice(0, 500)}`);
+      }
+
       done = true;
       resolve?.();
     });
@@ -323,6 +334,8 @@ export interface ProviderMsg {
   content: string;
   toolCall?: { id: string; name: string; args: Record<string, unknown> };
   toolCallId?: string;
+  /** Name of the tool that produced this result (required by Gemini's functionResponse). */
+  toolName?: string;
 }
 
 export interface ToolSchema {
@@ -383,7 +396,14 @@ function buildGeminiContents(messages: ProviderMsg[]): unknown[] {
     if (m.role === 'tool') {
       return {
         role: 'user',
-        parts: [{ functionResponse: { name: '', response: { content: m.content } } }],
+        parts: [
+          {
+            functionResponse: {
+              name: m.toolName ?? m.toolCallId ?? '',
+              response: { content: m.content },
+            },
+          },
+        ],
       };
     }
     if (m.role === 'assistant' && m.toolCall) {
