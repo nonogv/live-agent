@@ -608,30 +608,43 @@ function writeExecutor(tools: GeneratedTool[]) {
     `  type Song,`,
     `} from "@ableton-extensions/sdk";`,
     ``,
+    `// ─── Handle ID parsing ─────────────────────────────────────────────────────`,
+    ``,
+    `/**`,
+    ` * Normalizes a handle id from tool-call JSON — accepts a string or a number`,
+    ` * that may have lost bigint precision in scientific notation.`,
+    ` */`,
+    `export function parseHandleArg(s: string | number): string {`,
+    `  return typeof s === "number" ? BigInt(Math.round(s)).toString() : s;`,
+    `}`,
+    ``,
     `// ─── Object finders ────────────────────────────────────────────────────────`,
     ``,
-    `function findTrack(song: Song<"1.0.0">, id: string) {`,
-    `  const t = song.tracks.find(t => t.handle.id.toString() === id);`,
-    `  if (!t) throw new Error(\`Track "\${id}" not found. Call song_get_tracks to refresh.\`);`,
+    `function findTrack(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
+    `  const t = song.tracks.find(t => t.handle.id.toString() === normalized);`,
+    `  if (!t) throw new Error(\`Track "\${normalized}" not found. Call song_get_tracks to refresh.\`);`,
     `  return t;`,
     `}`,
     ``,
-    `function findScene(song: Song<"1.0.0">, id: string) {`,
-    `  const s = song.scenes.find(s => s.handle.id.toString() === id);`,
-    `  if (!s) throw new Error(\`Scene "\${id}" not found.\`);`,
+    `function findScene(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
+    `  const s = song.scenes.find(s => s.handle.id.toString() === normalized);`,
+    `  if (!s) throw new Error(\`Scene "\${normalized}" not found.\`);`,
     `  return s;`,
     `}`,
     ``,
-    `function findClip(song: Song<"1.0.0">, id: string) {`,
+    `function findClip(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
     `  for (const track of song.tracks) {`,
     `    for (const slot of track.clipSlots) {`,
-    `      if (slot.clip?.handle.id.toString() === id) return slot.clip;`,
+    `      if (slot.clip?.handle.id.toString() === normalized) return slot.clip;`,
     `    }`,
     `    for (const clip of track.arrangementClips) {`,
-    `      if (clip.handle.id.toString() === id) return clip;`,
+    `      if (clip.handle.id.toString() === normalized) return clip;`,
     `    }`,
     `  }`,
-    `  throw new Error(\`Clip "\${id}" not found.\`);`,
+    `  throw new Error(\`Clip "\${normalized}" not found.\`);`,
     `}`,
     ``,
     `function allDevices(song: Song<"1.0.0">): Device<"1.0.0">[] {`,
@@ -649,50 +662,56 @@ function writeExecutor(tools: GeneratedTool[]) {
     `  return result;`,
     `}`,
     ``,
-    `function findDevice(song: Song<"1.0.0">, id: string) {`,
-    `  const device = allDevices(song).find(d => d.handle.id.toString() === id);`,
-    `  if (!device) throw new Error(\`Device "\${id}" not found.\`);`,
+    `function findDevice(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
+    `  const device = allDevices(song).find(d => d.handle.id.toString() === normalized);`,
+    `  if (!device) throw new Error(\`Device "\${normalized}" not found.\`);`,
     `  return device;`,
     `}`,
     ``,
-    `function findDeviceParameter(song: Song<"1.0.0">, id: string) {`,
+    `function findDeviceParameter(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
     `  for (const device of allDevices(song)) {`,
     `    for (const param of device.parameters) {`,
-    `      if (param.handle.id.toString() === id) return param;`,
+    `      if (param.handle.id.toString() === normalized) return param;`,
     `    }`,
     `  }`,
-    `  throw new Error(\`DeviceParameter "\${id}" not found.\`);`,
+    `  throw new Error(\`DeviceParameter "\${normalized}" not found.\`);`,
     `}`,
     ``,
-    `function findChain(song: Song<"1.0.0">, id: string) {`,
+    `function findChain(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
     `  for (const device of allDevices(song)) {`,
     `    if (device instanceof RackDevice) {`,
-    `      const chain = device.chains.find(c => c.handle.id.toString() === id);`,
+    `      const chain = device.chains.find(c => c.handle.id.toString() === normalized);`,
     `      if (chain) return chain;`,
     `    }`,
     `  }`,
-    `  throw new Error(\`Chain "\${id}" not found.\`);`,
+    `  throw new Error(\`Chain "\${normalized}" not found.\`);`,
     `}`,
     ``,
-    `function findRackDevice(song: Song<"1.0.0">, id: string) {`,
-    `  const device = findDevice(song, id);`,
-    `  if (!(device instanceof RackDevice)) throw new Error(\`Device "\${id}" is not a RackDevice.\`);`,
+    `function findRackDevice(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
+    `  const device = findDevice(song, normalized);`,
+    `  if (!(device instanceof RackDevice)) throw new Error(\`Device "\${normalized}" is not a RackDevice.\`);`,
     `  return device;`,
     `}`,
     ``,
-    `function findCuePoint(song: Song<"1.0.0">, id: string) {`,
-    `  const cp = song.cuePoints.find(cp => cp.handle.id.toString() === id);`,
-    `  if (!cp) throw new Error(\`CuePoint "\${id}" not found.\`);`,
+    `function findCuePoint(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
+    `  const cp = song.cuePoints.find(cp => cp.handle.id.toString() === normalized);`,
+    `  if (!cp) throw new Error(\`CuePoint "\${normalized}" not found.\`);`,
     `  return cp;`,
     `}`,
     ``,
-    `function findTakeLane(song: Song<"1.0.0">, id: string) {`,
+    `function findTakeLane(song: Song<"1.0.0">, id: string | number) {`,
+    `  const normalized = parseHandleArg(id);`,
     `  for (const track of song.tracks) {`,
     `    for (const lane of track.takeLanes) {`,
-    `      if (lane.handle.id.toString() === id) return lane;`,
+    `      if (lane.handle.id.toString() === normalized) return lane;`,
     `    }`,
     `  }`,
-    `  throw new Error(\`TakeLane "\${id}" not found.\`);`,
+    `  throw new Error(\`TakeLane "\${normalized}" not found.\`);`,
     `}`,
     ``,
     `function serializeHandle(obj: { handle: { id: bigint } } | null) {`,
@@ -709,7 +728,7 @@ function writeExecutor(tools: GeneratedTool[]) {
     `  return result;`,
     `}`,
     ``,
-    `function findByHandleClass(song: Song<"1.0.0">, cls: string, id: string): unknown {`,
+    `function findByHandleClass(song: Song<"1.0.0">, cls: string, id: string | number): unknown {`,
     `  switch (cls) {`,
     `    case "Track": case "MidiTrack": case "AudioTrack": return findTrack(song, id);`,
     `    case "Scene": return findScene(song, id);`,
@@ -763,26 +782,26 @@ function generateDispatchBody(tool: GeneratedTool): string {
       break;
     case 'Track': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'MidiTrack': {
       const idParam = contextParams[0];
-      prefix = `const _baseTrack = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseTrack instanceof MidiTrack)) throw new Error("Track is not a MIDI track.");\n      const _obj = _baseTrack;\n      `;
+      prefix = `const _baseTrack = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      if (!(_baseTrack instanceof MidiTrack)) throw new Error("Track is not a MIDI track.");\n      const _obj = _baseTrack;\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'AudioTrack': {
       const idParam = contextParams[0];
-      prefix = `const _baseTrack = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseTrack instanceof AudioTrack)) throw new Error("Track is not an Audio track.");\n      const _obj = _baseTrack;\n      `;
+      prefix = `const _baseTrack = findTrack(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      if (!(_baseTrack instanceof AudioTrack)) throw new Error("Track is not an Audio track.");\n      const _obj = _baseTrack;\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'ClipSlot': {
       prefix =
         [
-          `const _track = findTrack(song, ${a}["track_id"] as string);`,
+          `const _track = findTrack(song, ${a}["track_id"] as string | number);`,
           `const _slotIdx = ${a}["slot_index"] as number;`,
           `const _obj = _track.clipSlots[_slotIdx];`,
           `if (!_obj) throw new Error(\`ClipSlot \${_slotIdx} not found.\`);`,
@@ -792,67 +811,67 @@ function generateDispatchBody(tool: GeneratedTool): string {
     }
     case 'Clip': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'MidiClip': {
       const idParam = contextParams[0];
-      prefix = `const _baseClip = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseClip instanceof MidiClip)) throw new Error("Clip is not a MIDI clip.");\n      const _obj = _baseClip;\n      `;
+      prefix = `const _baseClip = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      if (!(_baseClip instanceof MidiClip)) throw new Error("Clip is not a MIDI clip.");\n      const _obj = _baseClip;\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'AudioClip': {
       const idParam = contextParams[0];
-      prefix = `const _baseClip = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_baseClip instanceof AudioClip)) throw new Error("Clip is not an Audio clip.");\n      const _obj = _baseClip;\n      `;
+      prefix = `const _baseClip = findClip(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      if (!(_baseClip instanceof AudioClip)) throw new Error("Clip is not an Audio clip.");\n      const _obj = _baseClip;\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'Scene': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findScene(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findScene(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'Device': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'DeviceParameter': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findDeviceParameter(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findDeviceParameter(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'Simpler': {
       const idParam = contextParams[0];
-      prefix = `const _rawDevice = findDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      if (!(_rawDevice instanceof Simpler)) throw new Error("Device is not a Simpler");\n      const _obj = _rawDevice;\n      `;
+      prefix = `const _rawDevice = findDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      if (!(_rawDevice instanceof Simpler)) throw new Error("Device is not a Simpler");\n      const _obj = _rawDevice;\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'TakeLane': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findTakeLane(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findTakeLane(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'CuePoint': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findCuePoint(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findCuePoint(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'RackDevice': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findRackDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findRackDevice(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
     case 'Chain': {
       const idParam = contextParams[0];
-      prefix = `const _obj = findChain(song, ${a}[${JSON.stringify(idParam.name)}] as string);\n      `;
+      prefix = `const _obj = findChain(song, ${a}[${JSON.stringify(idParam.name)}] as string | number);\n      `;
       objectExpr = '_obj';
       break;
     }
@@ -875,7 +894,7 @@ function generateDispatchBody(tool: GeneratedTool): string {
     .map((p) => {
       if (p.isHandleRef) {
         // Resolve the handle and cast to the expected type
-        return `findByHandleClass(song, "${p.handleClass}", ${a}[${JSON.stringify(p.name)}] as string) as never`;
+        return `findByHandleClass(song, "${p.handleClass}", ${a}[${JSON.stringify(p.name)}] as string | number) as never`;
       }
       const cast = p.schema.type === 'object' ? 'never' : getTypecast(p.schema.type);
       return `${a}[${JSON.stringify(p.name)}] as ${cast}`;

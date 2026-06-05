@@ -92,10 +92,10 @@ describe('buildSystemPrompt', () => {
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('"Bass"');
-    expect(prompt).toContain('id:42');
+    expect(prompt).toContain('id:"42"');
     expect(prompt).toContain('[midi]');
     expect(prompt).toContain('"Room"');
-    expect(prompt).toContain('id:99');
+    expect(prompt).toContain('id:"99"');
     expect(prompt).toContain('[audio]');
   });
 
@@ -135,7 +135,7 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Analog');
     expect(prompt).toContain('Volume');
-    expect(prompt).toContain('id:20');
+    expect(prompt).toContain('id:"20"');
   });
 
   it('lists session clip names and MIDI notes', () => {
@@ -162,7 +162,7 @@ describe('buildSystemPrompt', () => {
     };
     const prompt = buildSystemPrompt(state, minimalTools);
     expect(prompt).toContain('Bass Loop');
-    expect(prompt).toContain('id:55');
+    expect(prompt).toContain('id:"55"');
     expect(prompt).toContain('p:40');
   });
 

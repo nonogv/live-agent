@@ -79,6 +79,13 @@ export interface LiveState {
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
+/**
+ * Formats a handle ID for the system prompt so the LLM passes it as a quoted JSON string.
+ */
+function fmtId(id: string): string {
+  return `"${id}"`;
+}
+
 function groupTools(schemas: ToolSchema[]): Map<string, ToolSchema[]> {
   const map = new Map<string, ToolSchema[]>();
   for (const schema of schemas) {
@@ -112,7 +119,7 @@ function renderTool(schema: ToolSchema): string {
 
 function renderDevice(d: DeviceInfo, indent = '      '): string {
   const paramStr = d.parameters
-    .map((p) => `${indent}  - ${p.name} (id:${p.id}) = ${p.value} [${p.min}–${p.max}]`)
+    .map((p) => `${indent}  - ${p.name} (id:${fmtId(p.id)}) = ${p.value} [${p.min}–${p.max}]`)
     .join('\n');
   const sampleStr = d.samplePath ? `\n${indent}  sample: ${d.samplePath}` : '';
   const chainStr =
@@ -123,11 +130,11 @@ function renderDevice(d: DeviceInfo, indent = '      '): string {
             const chainDevices = c.devices
               .map((cd) => renderDevice(cd, indent + '    '))
               .join('\n');
-            return `${indent}  Chain "${c.name}" (id:${c.id})${chainDevices ? '\n' + chainDevices : ''}`;
+            return `${indent}  Chain "${c.name}" (id:${fmtId(c.id)})${chainDevices ? '\n' + chainDevices : ''}`;
           })
           .join('\n')
       : '';
-  return `${indent}Device: "${d.name}" (id:${d.id})${sampleStr}${paramStr ? '\n' + paramStr : ''}${chainStr}`;
+  return `${indent}Device: "${d.name}" (id:${fmtId(d.id)})${sampleStr}${paramStr ? '\n' + paramStr : ''}${chainStr}`;
 }
 
 function renderClip(c: ClipInfo, indent: string): string {
@@ -145,7 +152,7 @@ function renderClip(c: ClipInfo, indent: string): string {
     c.filePath !== undefined
       ? `\n${indent}  Audio: ${c.filePath}${c.warping !== undefined ? ` warp:${c.warping}` : ''}${c.warpMode !== undefined ? ` warpMode:${c.warpMode}` : ''}`
       : '';
-  return `${indent}${label}: "${c.name}" (id:${c.id}) — ${c.duration} beats${flagStr}${noteStr}${audioStr}`;
+  return `${indent}${label}: "${c.name}" (id:${fmtId(c.id)}) — ${c.duration} beats${flagStr}${noteStr}${audioStr}`;
 }
 
 function renderTrack(t: TrackInfo): string {
@@ -153,31 +160,32 @@ function renderTrack(t: TrackInfo): string {
     .filter(Boolean)
     .join(',');
   const flagStr = flags ? ` [${flags}]` : '';
-  const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)} (id:${t.mixer.volume.id}) pan=${t.mixer.panning.value.toFixed(2)} (id:${t.mixer.panning.id})${t.mixer.sends.length ? ' sends:' + t.mixer.sends.map((s, i) => `[${i}]=${s.value.toFixed(2)}(id:${s.id})`).join(' ') : ''}`;
+  const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)} (id:${fmtId(t.mixer.volume.id)}) pan=${t.mixer.panning.value.toFixed(2)} (id:${fmtId(t.mixer.panning.id)})${t.mixer.sends.length ? ' sends:' + t.mixer.sends.map((s, i) => `[${i}]=${s.value.toFixed(2)}(id:${fmtId(s.id)})`).join(' ') : ''}`;
   const devStr = t.devices.length ? '\n' + t.devices.map((d) => renderDevice(d)).join('\n') : '';
   const clipStr = [
     ...t.sessionClips.map((c) => renderClip(c, '      ')),
     ...t.arrangementClips.map((c) => renderClip(c, '      ')),
   ].join('\n');
   const laneStr = t.takeLanes.length
-    ? '\n      TakeLanes: ' + t.takeLanes.map((tl) => `"${tl.name}" (id:${tl.id})`).join(', ')
+    ? '\n      TakeLanes: ' +
+      t.takeLanes.map((tl) => `"${tl.name}" (id:${fmtId(tl.id)})`).join(', ')
     : '';
-  return `  [${t.type}] "${t.name}" (id:${t.id})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${laneStr}`;
+  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${laneStr}`;
 }
 
 export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[]): string {
   const trackList = liveState.tracks.map(renderTrack).join('\n');
 
   const sceneStr = liveState.scenes.length
-    ? liveState.scenes.map((s) => `  "${s.name}" (id:${s.id}) ${s.tempo}bpm`).join('\n') +
+    ? liveState.scenes.map((s) => `  "${s.name}" (id:${fmtId(s.id)}) ${s.tempo}bpm`).join('\n') +
       '\n  (A scene tempo of -1 means the scene inherits the Song tempo and has no override set.)'
     : '  (none)';
 
   const cueStr = liveState.cuePoints.length
-    ? liveState.cuePoints.map((cp) => `  "${cp.name}" (id:${cp.id}) @${cp.time}`).join('\n')
+    ? liveState.cuePoints.map((cp) => `  "${cp.name}" (id:${fmtId(cp.id)}) @${cp.time}`).join('\n')
     : '  (none)';
 
-  const mainStr = `  Master: vol (id:${liveState.mainTrack.mixer.volume.id}) pan (id:${liveState.mainTrack.mixer.panning.id})`;
+  const mainStr = `  Master: vol (id:${fmtId(liveState.mainTrack.mixer.volume.id)}) pan (id:${fmtId(liveState.mainTrack.mixer.panning.id)})`;
 
   const GROUP_ORDER = [
     'get',
