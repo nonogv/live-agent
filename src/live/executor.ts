@@ -7,6 +7,7 @@ import {
   type Song,
 } from '@ableton-extensions/sdk';
 import type { LiveState, DeviceInfo, ClipInfo } from '../agent/chat.js';
+import { reg, clearRegistry } from './handle-registry.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -14,12 +15,12 @@ async function readDevices(devices: Song<'1.0.0'>['tracks'][0]['devices']): Prom
   return Promise.all(
     devices.map(async (d) => {
       const base: DeviceInfo = {
-        id: d.handle.id.toString(),
+        id: reg(d.handle.id.toString()),
         name: d.name,
         samplePath: d instanceof Simpler ? (d.sample?.filePath ?? null) : undefined,
         parameters: await Promise.all(
           d.parameters.map(async (p) => ({
-            id: p.handle.id.toString(),
+            id: reg(p.handle.id.toString()),
             name: p.name,
             value: await p.getValue(),
             min: p.min,
@@ -31,7 +32,7 @@ async function readDevices(devices: Song<'1.0.0'>['tracks'][0]['devices']): Prom
           d instanceof RackDevice
             ? await Promise.all(
                 d.chains.map(async (c, ci) => ({
-                  id: c.handle.id.toString(),
+                  id: reg(c.handle.id.toString()),
                   name: `Chain ${ci + 1}`,
                   devices: await readDevices(c.devices),
                 })),
@@ -48,7 +49,7 @@ function buildClipInfo(
   slotIndex: number,
 ): ClipInfo {
   const info: ClipInfo = {
-    id: clip.handle.id.toString(),
+    id: reg(clip.handle.id.toString()),
     name: clip.name,
     slotIndex,
     duration: clip.duration,
@@ -88,10 +89,13 @@ function readArrangementClips(clips: Song<'1.0.0'>['tracks'][0]['arrangementClip
 
 async function readMixer(mixer: Song<'1.0.0'>['tracks'][0]['mixer']) {
   return {
-    volume: { id: mixer.volume.handle.id.toString(), value: await mixer.volume.getValue() },
-    panning: { id: mixer.panning.handle.id.toString(), value: await mixer.panning.getValue() },
+    volume: { id: reg(mixer.volume.handle.id.toString()), value: await mixer.volume.getValue() },
+    panning: { id: reg(mixer.panning.handle.id.toString()), value: await mixer.panning.getValue() },
     sends: await Promise.all(
-      mixer.sends.map(async (s) => ({ id: s.handle.id.toString(), value: await s.getValue() })),
+      mixer.sends.map(async (s) => ({
+        id: reg(s.handle.id.toString()),
+        value: await s.getValue(),
+      })),
     ),
   };
 }
@@ -107,8 +111,10 @@ async function readMixer(mixer: Song<'1.0.0'>['tracks'][0]['mixer']) {
  * `npm run generate` — you do NOT need to touch this file for those.
  */
 export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
+  clearRegistry();
+
   const readTrack = async (t: Song<'1.0.0'>['tracks'][0], type: 'midi' | 'audio' | 'return') => ({
-    id: t.handle.id.toString(),
+    id: reg(t.handle.id.toString()),
     name: t.name,
     type,
     mute: t.mute,
@@ -118,7 +124,7 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
     devices: await readDevices(t.devices),
     sessionClips: readClips(t.clipSlots),
     arrangementClips: readArrangementClips(t.arrangementClips),
-    takeLanes: t.takeLanes.map((tl) => ({ id: tl.handle.id.toString(), name: tl.name })),
+    takeLanes: t.takeLanes.map((tl) => ({ id: reg(tl.handle.id.toString()), name: tl.name })),
   });
 
   const [regularTracks, returnTracks] = await Promise.all([
@@ -137,16 +143,16 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
     trackCount: song.tracks.length,
     tracks: [...regularTracks, ...returnTracks],
     mainTrack: {
-      id: song.mainTrack.handle.id.toString(),
+      id: reg(song.mainTrack.handle.id.toString()),
       mixer: mainMixer,
     },
     scenes: song.scenes.map((s) => ({
-      id: s.handle.id.toString(),
+      id: reg(s.handle.id.toString()),
       name: s.name,
       tempo: s.tempo,
     })),
     cuePoints: song.cuePoints.map((cp) => ({
-      id: cp.handle.id.toString(),
+      id: reg(cp.handle.id.toString()),
       name: cp.name,
       time: cp.time,
     })),
