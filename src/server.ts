@@ -13,6 +13,7 @@ import { GENERATED_TOOL_SCHEMAS } from './agent/generated-tools.js';
 import { CUSTOM_TOOL_SCHEMAS } from './agent/tools.js';
 import { createProvider, type ProviderMessage } from './providers/index.js';
 import { DESTRUCTIVE_TOOLS } from './agent/safety.js';
+import { pruneHistoryForProvider } from './history-prune.js';
 
 const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
@@ -270,10 +271,11 @@ async function handleChat(
       let hadToolCall = false;
 
       dbg(`[Live Agent] round ${round} — provider=${providerId} model=${model}`);
+      const providerMessages = pruneHistoryForProvider(history);
       for await (const chunk of provider.chat({
         model,
         systemPrompt,
-        messages: [...history],
+        messages: providerMessages,
         tools: ALL_TOOL_SCHEMAS,
       })) {
         if (chunk.type === 'text') {
@@ -349,13 +351,14 @@ async function handleChat(
     }
 
     ws.send(JSON.stringify({ type: 'stream_end' }));
-    storage.saveHistory(history);
   } catch (err) {
     const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
     dbg('[Live Agent] Chat error:', stack);
     // Send full stack to UI so we can see exactly where the error originates.
     ws.send(JSON.stringify({ type: 'error', message: stack }));
     history.pop();
+  } finally {
+    storage.saveHistory(history);
   }
 }
 

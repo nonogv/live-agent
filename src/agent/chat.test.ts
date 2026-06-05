@@ -235,4 +235,67 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('-1bpm');
     expect(prompt).toContain('inherits the Song tempo');
   });
+
+  it('shows arrangement clip count hint without listing arrangement clips', () => {
+    const state: LiveState = {
+      ...emptyState,
+      trackCount: 1,
+      tracks: [
+        emptyTrack({
+          id: '1',
+          name: 'Lead',
+          arrangementClips: [
+            {
+              id: 'arr-1',
+              name: 'Arrangement Part',
+              slotIndex: -1,
+              duration: 8,
+              looping: false,
+              muted: false,
+            },
+            {
+              id: 'arr-2',
+              name: 'Arrangement Part 2',
+              slotIndex: -1,
+              duration: 16,
+              looping: true,
+              muted: false,
+            },
+          ],
+        }),
+      ],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('2 arrangement clips');
+    expect(prompt).not.toContain('Arrangement Part');
+    expect(prompt).not.toContain('id:"arr-1"');
+  });
+
+  it('omits per-send ids from the mixer overview while keeping send values', () => {
+    const state: LiveState = {
+      ...emptyState,
+      trackCount: 1,
+      tracks: [
+        emptyTrack({
+          id: '1',
+          name: 'Vox',
+          mixer: {
+            volume: { id: 'vol-id', value: 0.75 },
+            panning: { id: 'pan-id', value: 0.5 },
+            sends: [
+              { id: 'send-a-id', value: 0.25 },
+              { id: 'send-b-id', value: 0.1 },
+            ],
+          },
+        }),
+      ],
+    };
+    const prompt = buildSystemPrompt(state, minimalTools);
+    expect(prompt).toContain('[0]=0.25');
+    expect(prompt).toContain('[1]=0.10');
+    expect(prompt).not.toContain('send-a-id');
+    expect(prompt).not.toContain('send-b-id');
+    expect(prompt).toContain('id:"vol-id"');
+    expect(prompt).toContain('id:"pan-id"');
+  });
 });
