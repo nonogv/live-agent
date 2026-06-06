@@ -1,14 +1,13 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Song } from '@ableton-extensions/sdk';
 import type { Storage } from './storage.js';
-import { buildSystemPrompt, type LiveState } from './agent/chat.js';
-import type { ProjectSnapshot } from './storage.js';
+import { buildSystemPrompt } from './agent/chat.js';
 import { getLiveState, handleToolCall } from './live/executor.js';
 import { executeGeneratedTool } from './live/generated-executor.js';
 import { GENERATED_TOOL_SCHEMAS } from './agent/generated-tools.js';
@@ -44,9 +43,10 @@ export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
 ): Promise<LiveAgentServer> {
-  // History is initialised empty; handleConnection populates it once the
-  // Live-state fingerprint is known. This avoids loading the wrong project's
-  // history at startup before we have a chance to detect the current set.
+  // Rotates every time the extension (re)starts. Used as the storage key for
+  // unnamed projects so they never accidentally share history across sessions.
+  const sessionId = randomUUID();
+
   const historyRef: { arr: ProviderMessage[] } = { arr: [] };
   let confirmMode: ConfirmMode = 'guard';
 
@@ -90,9 +90,7 @@ export async function startServer(
 
     ws.send(JSON.stringify({ type: 'ready' }));
 
-    // Project auto-detection runs first; history is sent inside handleConnection
-    // after the fingerprint resolves so the UI always receives the correct set.
-    void handleConnection(ws, getSong, storage, historyRef).catch((err) => {
+    void handleConnection(ws, storage, historyRef, sessionId).catch((err) => {
       console.error('[Live Agent] Failed to initialise connection:', err);
       ws.send(JSON.stringify({ type: 'error', message: String(err) }));
     });
@@ -138,6 +136,7 @@ type WebViewMessage =
   | { type: 'debug'; provider: string; model: string }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
+  | { type: 'set_project'; name: string }
   | { type: 'get_context' }
   | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
   | { type: 'save_memories'; scope: 'global' | 'project'; content: string }
@@ -159,87 +158,45 @@ function sendVisibleHistory(ws: WebSocket, history: ProviderMessage[]): void {
     }));
   ws.send(JSON.stringify({ type: 'history', messages: visibleHistory }));
 }
-
 /**
- * Builds a human-readable stale summary when the live session diverges from the saved snapshot.
- * Returns null when the snapshot still matches the current session.
- */
-function buildStaleSummary(snapshot: ProjectSnapshot, liveState: LiveState): string | null {
-  const currentTrackNames = liveState.tracks.map((track) => track.name);
-  const parts: string[] = [];
-
-  if (snapshot.trackCount !== liveState.trackCount) {
-    parts.push(`Track count changed from ${snapshot.trackCount} to ${liveState.trackCount}`);
-  }
-
-  const snapshotNames = new Set(snapshot.trackNames);
-  const currentNames = new Set(currentTrackNames);
-  const added = currentTrackNames.filter((name) => !snapshotNames.has(name));
-  const removed = snapshot.trackNames.filter((name) => !currentNames.has(name));
-  if (added.length > 0) {
-    parts.push(`Tracks added: ${added.join(', ')}`);
-  }
-  if (removed.length > 0) {
-    parts.push(`Tracks removed: ${removed.join(', ')}`);
-  }
-
-  if (Math.abs(snapshot.tempo - liveState.tempo) >= 5) {
-    parts.push(`Tempo changed from ${snapshot.tempo} to ${liveState.tempo} BPM`);
-  }
-
-  return parts.length > 0 ? `${parts.join('. ')}.` : null;
-}
-
-/**
- * Derives a stable 16-character hex fingerprint from the Live session's structure.
- * Track and scene names are sorted before hashing so rename order doesn't matter.
- * The fingerprint is the same across Live restarts when the set is unchanged,
- * but differs between sets with different tracks or scenes.
- */
-function computeProjectFingerprint(liveState: LiveState): string {
-  const parts = [
-    String(liveState.trackCount),
-    ...liveState.tracks.map((t) => t.name).sort(),
-    ...liveState.scenes.map((s) => s.name).sort(),
-  ];
-  return createHash('sha256').update(parts.join('\x00')).digest('hex').slice(0, 16);
-}
-
-/**
- * Auto-detects the current project by fingerprinting Live's track and scene
- * names, then loads the matching history and sends all initial connection frames.
+ * Sends the initial project, history, stale-warning, and context frames.
  *
- * History is keyed by fingerprint and restored across Live restarts as long as
- * the set's track and scene names haven't changed.  Two sets with identical
- * names will share a history bucket — an accepted limitation of the SDK not
- * exposing a stable set identifier.
+ * Two modes:
+ *
+ * - **Named project** (`current-project.json` has a non-empty name the user set):
+ *   history is keyed by that slug and survives Live restarts indefinitely.
+ *
+ * - **Unnamed project** (no user-assigned name or no file at all):
+ *   history is keyed by `session-<sessionId>`, which rotates every time the
+ *   extension starts.  This means the panel starts fresh each session for
+ *   unnamed sets, preventing blank or unrelated sets from sharing history.
+ *   The user can name the set at any time to promote it to cross-session storage.
  */
 async function handleConnection(
   ws: WebSocket,
-  getSong: () => Song<'1.0.0'>,
   storage: Storage,
   historyRef: { arr: ProviderMessage[] },
+  sessionId: string,
 ): Promise<void> {
-  const liveState = await getLiveState(getSong());
-  const fingerprint = computeProjectFingerprint(liveState);
+  const stored = storage.loadCurrentProject();
+  const isUserNamed = Boolean(stored?.name?.trim());
 
-  historyRef.arr = storage.loadHistory(fingerprint);
+  let slug: string;
+  let displayName: string | null;
 
-  const autoName = liveState.tracks
-    .slice(0, 3)
-    .map((t) => t.name)
-    .join(', ');
-  storage.saveCurrentProject(autoName, fingerprint);
-
-  ws.send(JSON.stringify({ type: 'project', name: autoName, slug: fingerprint }));
-  sendVisibleHistory(ws, historyRef.arr);
-
-  const snapshot = storage.loadProjectSnapshot(fingerprint);
-  if (snapshot) {
-    const summary = buildStaleSummary(snapshot, liveState);
-    if (summary) ws.send(JSON.stringify({ type: 'project_stale', summary }));
+  if (isUserNamed && stored) {
+    slug = stored.slug;
+    displayName = stored.name;
+    historyRef.arr = storage.loadHistory(slug);
+  } else {
+    slug = `session-${sessionId}`;
+    displayName = null;
+    storage.saveCurrentProject('', slug);
+    historyRef.arr = [];
   }
 
+  ws.send(JSON.stringify({ type: 'project', name: displayName, slug }));
+  sendVisibleHistory(ws, historyRef.arr);
   ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
 }
 
@@ -279,6 +236,15 @@ async function handleMessage(
       storage.clearHistory();
       ws.send(JSON.stringify({ type: 'history_cleared' }));
       break;
+
+    case 'set_project': {
+      const project = storage.saveCurrentProject(msg.name);
+      // Transfer the current in-memory history to the named slug immediately
+      // so the conversation so far is not lost when naming mid-session.
+      storage.saveHistory(historyRef.arr, project.slug);
+      ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
+      break;
+    }
 
     case 'get_context':
       ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));

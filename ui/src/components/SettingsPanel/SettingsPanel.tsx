@@ -12,6 +12,7 @@ interface SettingsPanelProps {
   onClearKey: (provider: string) => void;
   onOpenUrl: (url: string) => void;
   onClose: () => void;
+  onSetProject: (name: string) => void;
   onSaveInstructions: (scope: 'global' | 'project', content: string) => void;
   onSaveMemories: (scope: 'global' | 'project', content: string) => void;
 }
@@ -37,10 +38,12 @@ export function SettingsPanel({
   onClearKey,
   onOpenUrl,
   onClose,
+  onSetProject,
   onSaveInstructions,
   onSaveMemories,
 }: SettingsPanelProps) {
   const [feedback, setFeedback] = useState('');
+  const [projectName, setProjectName] = useState(project.name ?? '');
   const [globalInstructions, setGlobalInstructions] = useState(context.globalInstructions);
   const [projectInstructions, setProjectInstructions] = useState(context.projectInstructions);
   const [globalMemories, setGlobalMemories] = useState(context.globalMemories);
@@ -58,7 +61,7 @@ export function SettingsPanel({
     context.projectMemories,
   ]);
 
-  const projectActive = project.slug !== null;
+  const projectNamed = Boolean(project.name);
 
   function showFeedback(message: string) {
     setFeedback(message);
@@ -72,6 +75,13 @@ export function SettingsPanel({
     }
     onSave({ keys });
     showFeedback('Saved ✓');
+  }
+
+  function handleSetProject() {
+    const trimmed = projectName.trim();
+    if (!trimmed) return;
+    onSetProject(trimmed);
+    showFeedback('Project named ✓ — history now persists across sessions');
   }
 
   function handleSaveInstructions(scope: 'global' | 'project') {
@@ -149,19 +159,40 @@ export function SettingsPanel({
         ))}
       </div>
 
-      {projectActive && (
-        <div className="mb-6">
-          <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-text-dim">
-            Project
-          </h3>
-          <p className="text-[13px] text-text-dim">
-            Auto-detected: <span className="font-medium text-text">{project.name}</span>
+      <div className="mb-6">
+        <h3 className="mb-1 text-[13px] font-bold uppercase tracking-wide text-text-dim">
+          Project
+        </h3>
+        {projectNamed ? (
+          <p className="mb-2 text-[13px] text-text-dim">
+            <span className="font-medium text-text">{project.name}</span>
+            {' — '}history persists across sessions
           </p>
-          <p className="mt-1 text-[11px] text-text-dim opacity-60">
-            Detected from your track and scene structure. Changes when you load a different set.
+        ) : (
+          <p className="mb-2 text-[13px] text-text-dim">
+            Unnamed session — history resets on every reload. Name this set to persist it.
           </p>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="min-w-0 flex-1 rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder={project.name ?? 'My House Set'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSetProject();
+            }}
+          />
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-2 text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
+            onClick={handleSetProject}
+          >
+            {projectNamed ? 'Rename' : 'Name'}
+          </button>
         </div>
-      )}
+      </div>
 
       <div className="mb-6">
         <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
@@ -202,15 +233,15 @@ export function SettingsPanel({
               value={projectInstructions}
               onChange={(event) => setProjectInstructions(event.target.value)}
               placeholder="This is a lo-fi hip-hop set. Tempo stays at 90 BPM."
-              disabled={!projectActive}
-              title={projectActive ? undefined : 'Set a project first'}
+              disabled={!projectNamed}
+              title={projectNamed ? undefined : 'Name this project first'}
             />
             <button
               type="button"
               className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => handleSaveInstructions('project')}
-              disabled={!projectActive}
-              title={projectActive ? undefined : 'Set a project first'}
+              disabled={!projectNamed}
+              title={projectNamed ? undefined : 'Name this project first'}
             >
               Save
             </button>
@@ -254,15 +285,15 @@ export function SettingsPanel({
               value={projectMemories}
               onChange={(event) => setProjectMemories(event.target.value)}
               placeholder="8 tracks. Main synth is Operator on Track 3."
-              disabled={!projectActive}
-              title={projectActive ? undefined : 'Set a project first'}
+              disabled={!projectNamed}
+              title={projectNamed ? undefined : 'Name this project first'}
             />
             <button
               type="button"
               className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => handleSaveMemories('project')}
-              disabled={!projectActive}
-              title={projectActive ? undefined : 'Set a project first'}
+              disabled={!projectNamed}
+              title={projectNamed ? undefined : 'Name this project first'}
             >
               Save
             </button>

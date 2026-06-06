@@ -172,6 +172,10 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
+  function handleSetProject(name: string) {
+    sendMsg({ type: 'set_project', name });
+  }
+
   function handleSaveInstructions(scope: 'global' | 'project', content: string) {
     sendMsg({ type: 'save_instructions', scope, content });
   }
@@ -236,6 +240,7 @@ export function App() {
                 onClearKey={handleClearKey}
                 onOpenUrl={handleOpenUrl}
                 onClose={handleCloseSettings}
+                onSetProject={handleSetProject}
                 onSaveInstructions={handleSaveInstructions}
                 onSaveMemories={handleSaveMemories}
               />
