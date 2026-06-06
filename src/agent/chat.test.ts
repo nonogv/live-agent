@@ -316,6 +316,87 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('id:"arr-1"');
   });
 
+  describe('prompt context injection', () => {
+    const emptyContext = {
+      globalInstructions: '',
+      projectInstructions: '',
+      globalMemories: '',
+      projectMemories: '',
+    };
+
+    it('appends no extra sections when all context fields are empty', () => {
+      const withoutContext = buildSystemPrompt(emptyState, minimalTools);
+      const withEmptyContext = buildSystemPrompt(emptyState, minimalTools, emptyContext);
+      expect(withEmptyContext).toBe(withoutContext);
+      expect(withEmptyContext).not.toContain('## Your instructions');
+      expect(withEmptyContext).not.toContain('## Project instructions');
+      expect(withEmptyContext).not.toContain('## About you');
+      expect(withEmptyContext).not.toContain('## About this project');
+    });
+
+    it('appends global instructions when set', () => {
+      const prompt = buildSystemPrompt(emptyState, minimalTools, {
+        ...emptyContext,
+        globalInstructions: 'Always use sidechain compression.',
+      });
+      expect(prompt).toContain('## Your instructions\nAlways use sidechain compression.');
+    });
+
+    it('appends project instructions when set', () => {
+      const prompt = buildSystemPrompt(emptyState, minimalTools, {
+        ...emptyContext,
+        projectInstructions: 'This is a techno track in A minor.',
+      });
+      expect(prompt).toContain('## Project instructions\nThis is a techno track in A minor.');
+    });
+
+    it('appends global memories when set', () => {
+      const prompt = buildSystemPrompt(emptyState, minimalTools, {
+        ...emptyContext,
+        globalMemories: 'User prefers short answers.',
+      });
+      expect(prompt).toContain('## About you\nUser prefers short answers.');
+    });
+
+    it('appends project memories when set', () => {
+      const prompt = buildSystemPrompt(emptyState, minimalTools, {
+        ...emptyContext,
+        projectMemories: 'Kick drum is on track 1.',
+      });
+      expect(prompt).toContain('## About this project\nKick drum is on track 1.');
+    });
+
+    it('treats whitespace-only context fields as empty', () => {
+      const prompt = buildSystemPrompt(emptyState, minimalTools, {
+        globalInstructions: '  \n\t  ',
+        projectInstructions: '   ',
+        globalMemories: '\n',
+        projectMemories: ' \t ',
+      });
+      const baseline = buildSystemPrompt(emptyState, minimalTools);
+      expect(prompt).toBe(baseline);
+    });
+
+    it('appends all four sections in order when all are set', () => {
+      const prompt = buildSystemPrompt(emptyState, minimalTools, {
+        globalInstructions: 'Global rule',
+        projectInstructions: 'Project rule',
+        globalMemories: 'Global memory',
+        projectMemories: 'Project memory',
+      });
+      const toolRefIndex = prompt.indexOf('## Full tool reference');
+      const globalIdx = prompt.indexOf('## Your instructions\nGlobal rule');
+      const projectInstrIdx = prompt.indexOf('## Project instructions\nProject rule');
+      const globalMemIdx = prompt.indexOf('## About you\nGlobal memory');
+      const projectMemIdx = prompt.indexOf('## About this project\nProject memory');
+
+      expect(globalIdx).toBeGreaterThan(toolRefIndex);
+      expect(projectInstrIdx).toBeGreaterThan(globalIdx);
+      expect(globalMemIdx).toBeGreaterThan(projectInstrIdx);
+      expect(projectMemIdx).toBeGreaterThan(globalMemIdx);
+    });
+  });
+
   it('omits per-send ids from the mixer overview while keeping send values', () => {
     const state: LiveState = {
       ...emptyState,
