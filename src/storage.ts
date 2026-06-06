@@ -1,14 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ProviderMessage } from './providers/index.js';
-
-/** Agent prompt context assembled from global and project-scoped storage. */
-interface PromptContext {
-  globalInstructions: string;
-  projectInstructions: string;
-  globalMemories: string;
-  projectMemories: string;
-}
+import type { PromptContext } from './agent/chat.js';
 
 /** Persisted metadata for the active Ableton Live set. */
 export interface ProjectInfo {
