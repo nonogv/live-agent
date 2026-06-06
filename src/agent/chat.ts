@@ -120,6 +120,14 @@ export interface LiveState {
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
+/** User-provided instructions and memories appended to the system prompt. */
+export interface PromptContext {
+  globalInstructions: string;
+  projectInstructions: string;
+  globalMemories: string;
+  projectMemories: string;
+}
+
 /**
  * Formats a handle ID for the system prompt so the LLM passes it as a quoted JSON string.
  */
@@ -205,7 +213,19 @@ function renderTrack(t: TrackInfo): string {
   return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${arrangementHint}${laneHint}`;
 }
 
-export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[]): string {
+/**
+ * Builds the LLM system prompt from Live session state, tool schemas, and optional user context.
+ */
+export function buildSystemPrompt(
+  liveState: LiveState,
+  toolSchemas: ToolSchema[],
+  context: PromptContext = {
+    globalInstructions: '',
+    projectInstructions: '',
+    globalMemories: '',
+    projectMemories: '',
+  },
+): string {
   const trackList = liveState.tracks.map(renderTrack).join('\n');
 
   const sceneStr = liveState.scenes.length
@@ -243,7 +263,7 @@ export function buildSystemPrompt(liveState: LiveState, toolSchemas: ToolSchema[
     .map((g) => `### ${g}_*\n${grouped.get(g)!.map(renderTool).join('\n')}`)
     .join('\n\n');
 
-  return `You are Live Agent, an AI assistant embedded directly in Ableton Live.
+  let prompt = `You are Live Agent, an AI assistant embedded directly in Ableton Live.
 You help music producers control their session using natural language.
 
 ## Current session state
@@ -274,4 +294,20 @@ ${mainStr}
 
 ## Full tool reference (auto-generated from SDK — updates automatically with \`npm run generate\`)
 ${toolRef}`;
+
+  const contextSections: Array<{ heading: string; content: string }> = [
+    { heading: 'Your instructions', content: context.globalInstructions },
+    { heading: 'Project instructions', content: context.projectInstructions },
+    { heading: 'About you', content: context.globalMemories },
+    { heading: 'About this project', content: context.projectMemories },
+  ];
+
+  for (const { heading, content } of contextSections) {
+    const trimmed = content.trim();
+    if (trimmed) {
+      prompt += `\n\n## ${heading}\n${trimmed}`;
+    }
+  }
+
+  return prompt;
 }
