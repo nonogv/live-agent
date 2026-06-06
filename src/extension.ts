@@ -33,6 +33,7 @@ export const activate = (activation: ActivationContext): void => {
 
   const serverReady: Promise<void> = (async () => {
     const storageDir = context.environment.storageDirectory ?? '.';
+    console.log(`[Live Agent] storageDir=${storageDir}`);
     const storage = new Storage(storageDir);
 
     server = await startServer(() => context.application.song, storage);
