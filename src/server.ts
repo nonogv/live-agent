@@ -206,16 +206,23 @@ function computeProjectFingerprint(liveState: LiveState): string {
 }
 
 /**
- * Auto-detects the current project by fingerprinting the Live session state,
- * then loads the matching history into historyRef and sends all connection frames.
+ * Returns true when every track in the set carries Ableton's default numbered
+ * name (e.g. "1-MIDI", "2-Audio").  These sets are structurally identical so
+ * their fingerprints collide; we always start them with an empty history rather
+ * than serving a stale conversation from a previous blank set.
+ */
+function isDefaultProject(liveState: LiveState): boolean {
+  return liveState.tracks.every((t) => /^\d+-[A-Za-z]+$/.test(t.name));
+}
+
+/**
+ * Auto-detects the current project by fingerprinting Live's track and scene
+ * names, then loads the matching history and sends all initial connection frames.
  *
- * Two-layer identification:
- *  1. Fingerprint (track + scene names): stable across restarts of the same set.
- *  2. Main-track handle ID: changes every time any set is loaded, even the same one.
- *
- * We only restore persisted history when BOTH match the stored values — i.e. same
- * set structure AND same Live session.  If the handle differs (new set load), we
- * start fresh so unrelated blank sets don't share history.
+ * Blank / default sets (all tracks carry Ableton's numbered defaults) always
+ * receive an empty history because their fingerprints are identical across
+ * every new untouched set.  Any set with at least one renamed track gets
+ * cross-session history keyed by its fingerprint.
  */
 async function handleConnection(
   ws: WebSocket,
@@ -223,26 +230,14 @@ async function handleConnection(
   storage: Storage,
   historyRef: { arr: ProviderMessage[] },
 ): Promise<void> {
-  const song = getSong();
-  const liveState = await getLiveState(song);
+  const liveState = await getLiveState(getSong());
   const fingerprint = computeProjectFingerprint(liveState);
-  const sessionHandle = song.mainTrack.handle.id.toString();
+  const blank = isDefaultProject(liveState);
 
-  const storedHandle = storage.loadProjectSessionHandle(fingerprint);
-  const sameSession = storedHandle === sessionHandle;
+  // Blank sets always start fresh so two unrelated default sets don't share
+  // a conversation. Custom sets restore cross-session history.
+  historyRef.arr = blank ? [] : storage.loadHistory(fingerprint);
 
-  if (sameSession) {
-    // Same set, same Live session — restore persisted history so dialog
-    // close/reopen within a session doesn't lose the conversation.
-    historyRef.arr = storage.loadHistory(fingerprint);
-  } else {
-    // New set load (or first ever): start with a clean slate and persist
-    // the handle so subsequent reconnects within this session reuse history.
-    historyRef.arr = [];
-    storage.saveProjectSessionHandle(fingerprint, sessionHandle);
-  }
-
-  // Auto-persist project identity so saveHistory() uses the right path.
   const autoName = liveState.tracks
     .slice(0, 3)
     .map((t) => t.name)

@@ -386,31 +386,6 @@ export class Storage {
   }
 
   /**
-   * Returns the Live session handle ID stored alongside a project's history.
-   * Used to detect whether the same fingerprint was loaded in a new Live session.
-   * Returns null when no handle has been stored yet.
-   */
-  loadProjectSessionHandle(slug: string): string | null {
-    try {
-      return fs.readFileSync(path.join(this.projectDir(slug), 'session-handle.txt'), 'utf-8');
-    } catch {
-      return null;
-    }
-  }
-
-  /** Persists the main-track handle ID for the given project slug. */
-  saveProjectSessionHandle(slug: string, handleId: string): void {
-    try {
-      const dir = this.projectDir(slug);
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'session-handle.txt'), handleId, 'utf-8');
-    } catch (err) {
-      console.error('[Live Agent] Failed to save project session handle:', err);
-      throw err;
-    }
-  }
-
-  /**
    * Loads global and project-scoped instructions and memories for prompt assembly.
    */
   loadPromptContext(): PromptContext {
