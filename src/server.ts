@@ -8,13 +8,22 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { Song } from '@ableton-extensions/sdk';
 import type { Storage, SessionMeta } from './storage.js';
 import { buildSystemPrompt } from './agent/chat.js';
-import { getLiveState, handleToolCall } from './live/executor.js';
-import { executeGeneratedTool } from './live/generated-executor.js';
+import { getLiveState } from './live/executor.js';
+import type { AgentContext } from './live/agent-context.js';
+import { shouldPromptToContinue } from './agent/agent-checkpoint.js';
+import {
+  CONTINUE_TASK_TOOL_NAME,
+  MAX_AGENT_ROUNDS,
+  ROUND_LIMIT_MESSAGE,
+  STOPPED_BY_USER_MESSAGE,
+} from './agent/constants.js';
+import { executeToolWithRecovery } from './agent/tool-execution.js';
 import { GENERATED_TOOL_SCHEMAS } from './agent/generated-tools.js';
 import { CUSTOM_TOOL_SCHEMAS } from './agent/tools.js';
 import { createProvider, type ProviderMessage } from './providers/index.js';
 import { DESTRUCTIVE_TOOLS } from './agent/safety.js';
 import { pruneHistoryForProvider } from './history-prune.js';
+import { stringifyJson, toJsonSafe } from './json.js';
 
 const ALL_TOOL_SCHEMAS = [...CUSTOM_TOOL_SCHEMAS, ...GENERATED_TOOL_SCHEMAS];
 
@@ -42,7 +51,11 @@ export interface LiveAgentServer {
 export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
+  resources?: AgentContext['resources'],
 ): Promise<LiveAgentServer> {
+  const agentContext: AgentContext = { getSong, resources };
+  /** Steps since last continue approval — persists across user messages in this Live session. */
+  const agentBatchRef = { stepsInBatch: 0 };
   // One UUID per extension lifetime (i.e. per Live-app session).
   const sessionId = randomUUID();
   const sessionMeta: SessionMeta = { id: sessionId, startedAt: new Date().toISOString() };
@@ -102,7 +115,7 @@ export async function startServer(
         handleMessage(
           ws,
           msg,
-          getSong,
+          agentContext,
           storage,
           historyRef,
           confirmMode,
@@ -110,6 +123,7 @@ export async function startServer(
             confirmMode = val;
           },
           activeSessionRef,
+          agentBatchRef,
         ).catch((err) => {
           ws.send(JSON.stringify({ type: 'error', message: String(err) }));
         });
@@ -189,12 +203,13 @@ function handleConnection(
 async function handleMessage(
   ws: WebSocket,
   msg: WebViewMessage,
-  getSong: () => Song<'1.0.0'>,
+  agentContext: AgentContext,
   storage: Storage,
   historyRef: { arr: ProviderMessage[] },
   confirmMode: ConfirmMode,
   setConfirmMode: (val: ConfirmMode) => void,
   activeSessionRef: { id: string },
+  agentBatchRef: { stepsInBatch: number },
 ): Promise<void> {
   switch (msg.type) {
     case 'chat':
@@ -203,11 +218,12 @@ async function handleMessage(
         msg.text,
         msg.provider,
         msg.model,
-        getSong,
+        agentContext,
         storage,
         historyRef.arr,
         confirmMode,
         activeSessionRef.id,
+        agentBatchRef,
       );
       break;
 
@@ -270,7 +286,13 @@ async function handleMessage(
       break;
 
     case 'refresh_project_memories':
-      await handleRefreshProjectMemories(ws, msg.provider, msg.model, getSong, storage);
+      await handleRefreshProjectMemories(
+        ws,
+        msg.provider,
+        msg.model,
+        agentContext.getSong,
+        storage,
+      );
       break;
 
     case 'get_settings':
@@ -328,11 +350,12 @@ async function handleChat(
   userText: string,
   providerId: string,
   model: string,
-  getSong: () => Song<'1.0.0'>,
+  agentContext: AgentContext,
   storage: Storage,
   history: ProviderMessage[],
   confirmMode: ConfirmMode,
   sessionId: string,
+  agentBatchRef: { stepsInBatch: number },
 ): Promise<void> {
   const apiKey = storage.getApiKey(providerId);
   if (!apiKey) {
@@ -350,7 +373,7 @@ async function handleChat(
 
   try {
     const provider = createProvider(providerId, apiKey);
-    const song = getSong();
+    const song = agentContext.getSong();
 
     // Build the system prompt once per user message. We keep it constant so that
     // Gemini thinking-model thought_signatures (which are tied to the session
@@ -360,20 +383,24 @@ async function handleChat(
     const systemPrompt = buildSystemPrompt(await getLiveState(song), ALL_TOOL_SCHEMAS, context);
 
     // Agentic loop: keep calling the provider until it returns a final text
-    // response with no tool calls (max 10 rounds as a safety net).
-    const MAX_ROUNDS = 10;
-    let round = 0;
+    // response with no tool calls. Pauses every ROUNDS_PER_BATCH steps (counted
+    // across user messages) to ask the user to continue; hard-capped per message.
+    let totalRounds = 0;
+    let taskCompleted = false;
 
-    while (round < MAX_ROUNDS) {
-      round++;
+    while (totalRounds < MAX_AGENT_ROUNDS) {
+      totalRounds++;
+      agentBatchRef.stepsInBatch++;
       // Refresh handle registry so every round resolves the CURRENT Live objects.
       // We discard the returned state (system prompt is built only once) — the
       // important side-effect is clearRegistry() + re-registering all handles.
-      if (round > 1) await getLiveState(song);
+      if (totalRounds > 1) await getLiveState(song);
       let assistantContent = '';
       let hadToolCall = false;
 
-      dbg(`[Live Agent] round ${round} — provider=${providerId} model=${model}`);
+      dbg(
+        `[Live Agent] round ${totalRounds} (batch ${agentBatchRef.stepsInBatch}) — provider=${providerId} model=${model}`,
+      );
       const providerMessages = pruneHistoryForProvider(history);
       for await (const chunk of provider.chat({
         model,
@@ -391,7 +418,13 @@ async function handleChat(
             confirmMode === 'review' ||
             (confirmMode === 'guard' && DESTRUCTIVE_TOOLS.has(chunk.name));
           if (needsConfirm) {
-            const confirmed = await requestConfirmation(ws, chunk.id, chunk.name, chunk.args);
+            const confirmed = await requestUserApproval(
+              ws,
+              chunk.id,
+              chunk.name,
+              chunk.args,
+              30_000,
+            );
             if (!confirmed) {
               history.push({ role: 'assistant', content: assistantContent, toolCall: chunk });
               history.push({
@@ -414,18 +447,10 @@ async function handleChat(
 
           ws.send(JSON.stringify({ type: 'tool_start', name: chunk.name, args: chunk.args }));
 
-          const result = await executeGeneratedTool(song, chunk.name, chunk.args).catch(
-            (err: unknown) => {
-              // Only fall back to custom tools for genuinely unknown generated tools.
-              // Re-throw real execution errors so the LLM gets actionable feedback.
-              if (err instanceof Error && err.message.startsWith('Unknown generated tool:')) {
-                return handleToolCall(song, chunk.name, chunk.args);
-              }
-              throw err;
-            },
-          );
+          const result = await executeToolWithRecovery(agentContext, chunk.name, chunk.args);
 
-          ws.send(JSON.stringify({ type: 'tool_result', name: chunk.name, result }));
+          const safeResult = toJsonSafe(result);
+          ws.send(stringifyJson({ type: 'tool_result', name: chunk.name, result: safeResult }));
 
           history.push({
             role: 'assistant',
@@ -436,7 +461,7 @@ async function handleChat(
             role: 'tool',
             toolCallId: chunk.id,
             toolName: chunk.name,
-            content: JSON.stringify(result),
+            content: stringifyJson(safeResult),
           });
 
           assistantContent = '';
@@ -448,9 +473,39 @@ async function handleChat(
         if (assistantContent) {
           history.push({ role: 'assistant', content: assistantContent });
         }
+        taskCompleted = true;
+        agentBatchRef.stepsInBatch = 0;
         break;
       }
+
+      if (
+        shouldPromptToContinue(
+          agentBatchRef.stepsInBatch,
+          hadToolCall,
+          totalRounds,
+          MAX_AGENT_ROUNDS,
+        )
+      ) {
+        if (confirmMode === 'off') {
+          // Auto mode: keep going without step-approval prompts.
+          agentBatchRef.stepsInBatch = 0;
+        } else {
+          const approved = await requestContinueApproval(ws, agentBatchRef.stepsInBatch);
+          if (!approved) {
+            history.push({ role: 'assistant', content: STOPPED_BY_USER_MESSAGE });
+            agentBatchRef.stepsInBatch = 0;
+            break;
+          }
+
+          agentBatchRef.stepsInBatch = 0;
+        }
+      }
       // Tool calls were made; loop to get the model's follow-up response
+    }
+
+    if (!taskCompleted && totalRounds >= MAX_AGENT_ROUNDS) {
+      ws.send(JSON.stringify({ type: 'stream_chunk', text: ROUND_LIMIT_MESSAGE }));
+      history.push({ role: 'assistant', content: ROUND_LIMIT_MESSAGE });
     }
 
     ws.send(JSON.stringify({ type: 'stream_end' }));
@@ -476,21 +531,24 @@ async function handleChat(
 /**
  * Sends a confirmation request to the UI and waits for the user's response.
  * Resolves to `true` if the user confirms, `false` if they cancel or if the
- * 30-second timeout elapses with no response.
+ * timeout elapses with no response.
  */
-async function requestConfirmation(
+async function requestUserApproval(
   ws: WebSocket,
-  toolCallId: string,
-  toolName: string,
+  approvalId: string,
+  title: string,
   args: Record<string, unknown>,
+  timeoutMs: number,
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    ws.send(JSON.stringify({ type: 'confirm_request', toolCallId, toolName, args }));
+    ws.send(
+      JSON.stringify({ type: 'confirm_request', toolCallId: approvalId, toolName: title, args }),
+    );
 
     const handler = (raw: Buffer | ArrayBuffer | Buffer[]) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
-        if (msg.type === 'confirm_response' && msg.toolCallId === toolCallId) {
+        if (msg.type === 'confirm_response' && msg.toolCallId === approvalId) {
           ws.off('message', handler);
           resolve(msg.confirmed);
         }
@@ -500,12 +558,22 @@ async function requestConfirmation(
     };
     ws.on('message', handler);
 
-    // Auto-cancel after 30 seconds if no response
     setTimeout(() => {
       ws.off('message', handler);
       resolve(false);
-    }, 30_000);
+    }, timeoutMs);
   });
+}
+
+/** Asks the user to approve another batch of agent steps after a long run. */
+async function requestContinueApproval(ws: WebSocket, roundsCompleted: number): Promise<boolean> {
+  return requestUserApproval(
+    ws,
+    `continue-${randomUUID()}`,
+    CONTINUE_TASK_TOOL_NAME,
+    { roundsCompleted },
+    120_000,
+  );
 }
 
 /** Regenerates project memories from the current Live session via a single LLM turn. */

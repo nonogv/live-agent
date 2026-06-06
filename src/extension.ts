@@ -35,7 +35,7 @@ export const activate = (activation: ActivationContext): void => {
     const storageDir = context.environment.storageDirectory ?? '.';
     const storage = new Storage(storageDir);
 
-    server = await startServer(() => context.application.song, storage);
+    server = await startServer(() => context.application.song, storage, context.resources);
 
     for (const scope of CONTEXT_MENU_SCOPES) {
       if (registeredMenuScopes.has(scope)) {
