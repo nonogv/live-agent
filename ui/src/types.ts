@@ -46,6 +46,20 @@ export interface ProviderEntry {
 /** The full provider/model registry. */
 export type ProvidersRegistry = Record<string, ProviderEntry>;
 
+/** Active project identity from the backend. */
+export interface ProjectState {
+  name: string | null;
+  slug: string | null;
+}
+
+/** Layered instructions and memories (global + per-project). */
+export interface ContextState {
+  globalInstructions: string;
+  projectInstructions: string;
+  globalMemories: string;
+  projectMemories: string;
+}
+
 /** Settings payload received from the backend. */
 export interface SettingsPayload {
   type: 'settings';
@@ -70,7 +84,17 @@ export type ServerMessage =
   | SettingsPayload
   | { type: 'settings_saved' }
   | { type: 'key_cleared'; provider: string }
-  | { type: 'history'; messages: Array<{ role: 'user' | 'agent'; content: string }> };
+  | { type: 'history'; messages: Array<{ role: 'user' | 'agent'; content: string }> }
+  | { type: 'project'; name: string | null; slug: string | null }
+  | {
+      type: 'context';
+      globalInstructions: string;
+      projectInstructions: string;
+      globalMemories: string;
+      projectMemories: string;
+    }
+  | { type: 'context_saved' }
+  | { type: 'project_stale'; summary: string };
 
 // ── WebSocket message types (client → server) ──────────────────────────────
 
@@ -85,4 +109,11 @@ export type ClientMessage =
   | { type: 'console_log'; level: string; message: string }
   | { type: 'debug'; provider: string; model: string }
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
-  | { type: 'confirm_response'; confirmed: boolean; toolCallId: string };
+  | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
+  | { type: 'get_project' }
+  | { type: 'set_project'; name: string }
+  | { type: 'clear_project' }
+  | { type: 'get_context' }
+  | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
+  | { type: 'save_memories'; scope: 'global' | 'project'; content: string }
+  | { type: 'refresh_project_memories'; provider: string; model: string };

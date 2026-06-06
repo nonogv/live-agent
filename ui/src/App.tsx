@@ -1,12 +1,20 @@
 import { useCallback, useReducer, useRef, useState } from 'react';
 import { ChatPanel } from './components/ChatPanel';
+import { ProjectStaleBanner } from './components/ProjectStaleBanner';
 import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProviders } from './hooks/useProviders';
 import { chatReducer } from './chatReducer';
 import { toggleAppTab, type AppTab } from './appTab';
-import type { ClientMessage, ConfirmMode, ServerMessage, SettingsPayload } from './types';
+import type {
+  ClientMessage,
+  ConfirmMode,
+  ContextState,
+  ProjectState,
+  ServerMessage,
+  SettingsPayload,
+} from './types';
 
 /** Root application component. Manages tab state and wires WebSocket to chat. */
 export function App() {
@@ -14,6 +22,14 @@ export function App() {
   const [debugMode, setDebugMode] = useState(false);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>('guard');
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
+  const [project, setProject] = useState<ProjectState>({ name: null, slug: null });
+  const [context, setContext] = useState<ContextState>({
+    globalInstructions: '',
+    projectInstructions: '',
+    globalMemories: '',
+    projectMemories: '',
+  });
+  const [projectStale, setProjectStale] = useState<string | null>(null);
   const [chatState, dispatch] = useReducer(chatReducer, { messages: [], streaming: false });
 
   const sendRef = useRef<(msg: ClientMessage) => void>(() => {});
@@ -31,6 +47,8 @@ export function App() {
       switch (msg.type) {
         case 'ready':
           sendMsg({ type: 'get_settings' });
+          sendMsg({ type: 'get_project' });
+          sendMsg({ type: 'get_context' });
           break;
         case 'stream_start':
           if (expectDiagnosticStreamRef.current) {
@@ -77,6 +95,23 @@ export function App() {
           break;
         case 'history':
           dispatch({ type: 'LOAD_HISTORY', messages: msg.messages });
+          break;
+        case 'project':
+          setProject({ name: msg.name, slug: msg.slug });
+          break;
+        case 'context':
+          setContext({
+            globalInstructions: msg.globalInstructions,
+            projectInstructions: msg.projectInstructions,
+            globalMemories: msg.globalMemories,
+            projectMemories: msg.projectMemories,
+          });
+          break;
+        case 'context_saved':
+          setProjectStale(null);
+          break;
+        case 'project_stale':
+          setProjectStale(msg.summary);
           break;
       }
     },
@@ -138,6 +173,30 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
+  function handleSetProject(name: string) {
+    sendMsg({ type: 'set_project', name });
+  }
+
+  function handleClearProject() {
+    sendMsg({ type: 'clear_project' });
+  }
+
+  function handleSaveInstructions(scope: 'global' | 'project', content: string) {
+    sendMsg({ type: 'save_instructions', scope, content });
+  }
+
+  function handleSaveMemories(scope: 'global' | 'project', content: string) {
+    sendMsg({ type: 'save_memories', scope, content });
+  }
+
+  function handleRefreshProjectMemories() {
+    sendMsg({ type: 'refresh_project_memories', provider, model });
+  }
+
+  function handleDismissStale() {
+    setProjectStale(null);
+  }
+
   function handleCloseSettings() {
     setTab('chat');
   }
@@ -162,6 +221,12 @@ export function App() {
           onToggleToolFold={handleToggleToolFold}
         />
 
+        <ProjectStaleBanner
+          summary={projectStale}
+          onUpdate={handleRefreshProjectMemories}
+          onDismiss={handleDismissStale}
+        />
+
         {tab === 'settings' && (
           <>
             <button
@@ -174,10 +239,16 @@ export function App() {
               <SettingsPanel
                 providers={providers}
                 settings={settings}
+                project={project}
+                context={context}
                 onSave={handleSaveSettings}
                 onClearKey={handleClearKey}
                 onOpenUrl={handleOpenUrl}
                 onClose={handleCloseSettings}
+                onSetProject={handleSetProject}
+                onClearProject={handleClearProject}
+                onSaveInstructions={handleSaveInstructions}
+                onSaveMemories={handleSaveMemories}
               />
             </div>
           </>

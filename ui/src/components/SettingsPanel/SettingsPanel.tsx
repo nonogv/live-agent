@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { ApiKeyField, getKeyInputValue } from '../ApiKeyField';
-import type { ProvidersRegistry, SettingsPayload } from '../../types';
+import type { ContextState, ProjectState, ProvidersRegistry, SettingsPayload } from '../../types';
 
 interface SettingsPanelProps {
   providers: ProvidersRegistry;
   settings: SettingsPayload | null;
+  project: ProjectState;
+  context: ContextState;
   onSave: (payload: { keys: Record<string, string> }) => void;
   onClearKey: (provider: string) => void;
   onOpenUrl: (url: string) => void;
   onClose: () => void;
+  onSetProject: (name: string) => void;
+  onClearProject: () => void;
+  onSaveInstructions: (scope: 'global' | 'project', content: string) => void;
+  onSaveMemories: (scope: 'global' | 'project', content: string) => void;
 }
 
 const KEY_PLACEHOLDERS: Record<string, string> = {
@@ -20,16 +26,53 @@ const KEY_PLACEHOLDERS: Record<string, string> = {
 
 const PROVIDER_ORDER = ['openai', 'anthropic', 'gemini'];
 
-/** Settings panel for API keys. */
+const TEXTAREA_CLASS =
+  'w-full resize-none rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent';
+
+/** Settings panel for API keys, project context, instructions, and memories. */
 export function SettingsPanel({
   providers,
   settings,
+  project,
+  context,
   onSave,
   onClearKey,
   onOpenUrl,
   onClose,
+  onSetProject,
+  onClearProject,
+  onSaveInstructions,
+  onSaveMemories,
 }: SettingsPanelProps) {
   const [feedback, setFeedback] = useState('');
+  const [projectName, setProjectName] = useState(project.name ?? '');
+  const [globalInstructions, setGlobalInstructions] = useState(context.globalInstructions);
+  const [projectInstructions, setProjectInstructions] = useState(context.projectInstructions);
+  const [globalMemories, setGlobalMemories] = useState(context.globalMemories);
+  const [projectMemories, setProjectMemories] = useState(context.projectMemories);
+
+  useEffect(() => {
+    setProjectName(project.name ?? '');
+  }, [project.name]);
+
+  useEffect(() => {
+    setGlobalInstructions(context.globalInstructions);
+    setProjectInstructions(context.projectInstructions);
+    setGlobalMemories(context.globalMemories);
+    setProjectMemories(context.projectMemories);
+  }, [
+    context.globalInstructions,
+    context.projectInstructions,
+    context.globalMemories,
+    context.projectMemories,
+  ]);
+
+  const projectActive = project.slug !== null;
+
+  function showFeedback(message: string) {
+    setFeedback(message);
+    setTimeout(() => setFeedback(''), 2500);
+  }
 
   function handleSave() {
     const keys: Record<string, string> = {};
@@ -37,8 +80,28 @@ export function SettingsPanel({
       keys[id] = getKeyInputValue(id);
     }
     onSave({ keys });
-    setFeedback('Saved ✓');
-    setTimeout(() => setFeedback(''), 2500);
+    showFeedback('Saved ✓');
+  }
+
+  function handleSetProject() {
+    const trimmed = projectName.trim();
+    if (!trimmed) {
+      return;
+    }
+    onSetProject(trimmed);
+    showFeedback('Project updated ✓');
+  }
+
+  function handleSaveInstructions(scope: 'global' | 'project') {
+    const content = scope === 'global' ? globalInstructions : projectInstructions;
+    onSaveInstructions(scope, content);
+    showFeedback('Instructions saved ✓');
+  }
+
+  function handleSaveMemories(scope: 'global' | 'project') {
+    const content = scope === 'global' ? globalMemories : projectMemories;
+    onSaveMemories(scope, content);
+    showFeedback('Memories saved ✓');
   }
 
   function handleExternalLink(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
@@ -102,6 +165,152 @@ export function SettingsPanel({
             onClear={onClearKey}
           />
         ))}
+      </div>
+
+      <div className="mb-6">
+        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
+          Project
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="min-w-0 flex-1 rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+            placeholder="My Live Set"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                handleSetProject();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-2 text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
+            onClick={handleSetProject}
+          >
+            Switch / Create
+          </button>
+        </div>
+        {projectActive && (
+          <div className="mt-2 flex items-center gap-3">
+            <span className="text-[13px] text-text-dim">slug: {project.slug}</span>
+            <button
+              type="button"
+              className="cursor-pointer rounded-default border border-border px-2 py-1 text-[12px] text-text-dim transition-colors hover:border-[#e05555] hover:text-[#e05555]"
+              onClick={onClearProject}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-6">
+        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
+          Instructions
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-[13px] text-text-dim" htmlFor="global-instructions">
+              Global
+            </label>
+            <textarea
+              id="global-instructions"
+              className={TEXTAREA_CLASS}
+              rows={4}
+              value={globalInstructions}
+              onChange={(event) => setGlobalInstructions(event.target.value)}
+              placeholder="Always respond in English. Prefer minor scales."
+            />
+            <button
+              type="button"
+              className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent"
+              onClick={() => handleSaveInstructions('global')}
+            >
+              Save
+            </button>
+          </div>
+          <div>
+            <label
+              className="mb-1.5 block text-[13px] text-text-dim"
+              htmlFor="project-instructions"
+            >
+              This project
+            </label>
+            <textarea
+              id="project-instructions"
+              className={`${TEXTAREA_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+              rows={4}
+              value={projectInstructions}
+              onChange={(event) => setProjectInstructions(event.target.value)}
+              placeholder="This is a lo-fi hip-hop set. Tempo stays at 90 BPM."
+              disabled={!projectActive}
+              title={projectActive ? undefined : 'Set a project first'}
+            />
+            <button
+              type="button"
+              className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => handleSaveInstructions('project')}
+              disabled={!projectActive}
+              title={projectActive ? undefined : 'Set a project first'}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
+          Memories
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-[13px] text-text-dim" htmlFor="global-memories">
+              Global
+            </label>
+            <textarea
+              id="global-memories"
+              className={TEXTAREA_CLASS}
+              rows={4}
+              value={globalMemories}
+              onChange={(event) => setGlobalMemories(event.target.value)}
+              placeholder="I'm a house music producer. I prefer four-on-the-floor kicks."
+            />
+            <button
+              type="button"
+              className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent"
+              onClick={() => handleSaveMemories('global')}
+            >
+              Save
+            </button>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] text-text-dim" htmlFor="project-memories">
+              This project
+            </label>
+            <textarea
+              id="project-memories"
+              className={`${TEXTAREA_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+              rows={4}
+              value={projectMemories}
+              onChange={(event) => setProjectMemories(event.target.value)}
+              placeholder="8 tracks. Main synth is Operator on Track 3."
+              disabled={!projectActive}
+              title={projectActive ? undefined : 'Set a project first'}
+            />
+            <button
+              type="button"
+              className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => handleSaveMemories('project')}
+              disabled={!projectActive}
+              title={projectActive ? undefined : 'Set a project first'}
+            >
+              Save
+            </button>
+          </div>
+        </div>
       </div>
 
       <button
