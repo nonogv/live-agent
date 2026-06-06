@@ -143,6 +143,10 @@ type WebViewMessage =
   | { type: 'refresh_project_memories'; provider: string; model: string };
 
 /** Sends the user-visible portion of the conversation history to the UI. */
+/**
+ * Sends the user-visible portion of the conversation history to the UI.
+ * Always sends the frame so that switching to an empty project clears the chat.
+ */
 function sendVisibleHistory(ws: WebSocket, history: ProviderMessage[]): void {
   const visibleHistory = history
     .filter(
@@ -152,9 +156,7 @@ function sendVisibleHistory(ws: WebSocket, history: ProviderMessage[]): void {
       role: message.role === 'assistant' ? 'agent' : 'user',
       content: message.content,
     }));
-  if (visibleHistory.length > 0) {
-    ws.send(JSON.stringify({ type: 'history', messages: visibleHistory }));
-  }
+  ws.send(JSON.stringify({ type: 'history', messages: visibleHistory }));
 }
 
 /**
