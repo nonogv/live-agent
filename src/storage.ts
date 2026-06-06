@@ -16,6 +16,18 @@ export interface ProjectSnapshot {
   tempo: number;
 }
 
+/** Metadata stored alongside a saved conversation session. */
+export interface SessionMeta {
+  /** UUID generated at extension startup — unique per Live-app lifetime. */
+  id: string;
+  /** ISO timestamp of when the session started. */
+  startedAt: string;
+  /** User-assigned name, if any. */
+  name?: string;
+  /** First user message, truncated to ~80 chars, auto-populated after first turn. */
+  preview?: string;
+}
+
 interface Settings {
   apiKeys: {
     openai?: string;
@@ -427,6 +439,83 @@ export class Storage {
     } catch (err) {
       console.error('[Live Agent] Failed to save project snapshot:', err);
       throw err;
+    }
+  }
+
+  // ─── Session storage ─────────────────────────────────────────────────────
+
+  private sessionDir(sessionId: string): string {
+    return path.join(this.storageDirectory, 'sessions', sessionId);
+  }
+
+  /** Persists session metadata (creates the session directory if needed). */
+  saveSessionMeta(sessionId: string, meta: SessionMeta): void {
+    try {
+      const dir = this.sessionDir(sessionId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Live Agent] Failed to save session meta:', err);
+      throw err;
+    }
+  }
+
+  /** Loads session metadata. Returns null when the session does not exist. */
+  loadSessionMeta(sessionId: string): SessionMeta | null {
+    try {
+      const raw = fs.readFileSync(path.join(this.sessionDir(sessionId), 'meta.json'), 'utf-8');
+      return JSON.parse(raw) as SessionMeta;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Persists the conversation history for a session. */
+  saveSessionHistory(sessionId: string, messages: ProviderMessage[]): void {
+    try {
+      const dir = this.sessionDir(sessionId);
+      fs.mkdirSync(dir, { recursive: true });
+      const trimmed = messages.slice(-HISTORY_MAX_MESSAGES);
+      fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify(trimmed, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Live Agent] Failed to save session history:', err);
+      throw err;
+    }
+  }
+
+  /** Loads the conversation history for a session. Returns [] when not found. */
+  loadSessionHistory(sessionId: string): ProviderMessage[] {
+    try {
+      const raw = fs.readFileSync(path.join(this.sessionDir(sessionId), 'history.json'), 'utf-8');
+      return JSON.parse(raw) as ProviderMessage[];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Returns all saved sessions sorted newest-first.
+   * Sessions with no history (empty conversations) are excluded.
+   */
+  listSessions(): SessionMeta[] {
+    const sessionsDir = path.join(this.storageDirectory, 'sessions');
+    try {
+      const entries = fs.readdirSync(sessionsDir, { withFileTypes: true });
+      const metas: SessionMeta[] = [];
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const meta = this.loadSessionMeta(entry.name);
+        if (!meta) continue;
+        // Skip sessions with no actual messages.
+        const histPath = path.join(this.sessionDir(entry.name), 'history.json');
+        if (!fs.existsSync(histPath)) continue;
+        metas.push(meta);
+      }
+      return metas.sort(
+        (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+      );
+    } catch {
+      return [];
     }
   }
 

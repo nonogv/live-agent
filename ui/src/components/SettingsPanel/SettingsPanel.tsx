@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { ApiKeyField, getKeyInputValue } from '../ApiKeyField';
-import type { ContextState, ProjectState, ProvidersRegistry, SettingsPayload } from '../../types';
+import type { ContextState, ProvidersRegistry, SettingsPayload } from '../../types';
 
 interface SettingsPanelProps {
   providers: ProvidersRegistry;
   settings: SettingsPayload | null;
-  project: ProjectState;
-  namedProjects: Array<{ name: string; slug: string }>;
   context: ContextState;
   onSave: (payload: { keys: Record<string, string> }) => void;
   onClearKey: (provider: string) => void;
   onOpenUrl: (url: string) => void;
   onClose: () => void;
-  onSetProject: (name: string) => void;
-  onLoadProject: (slug: string) => void;
   onSaveInstructions: (scope: 'global' | 'project', content: string) => void;
   onSaveMemories: (scope: 'global' | 'project', content: string) => void;
 }
@@ -34,20 +30,15 @@ const TEXTAREA_CLASS =
 export function SettingsPanel({
   providers,
   settings,
-  project,
-  namedProjects,
   context,
   onSave,
   onClearKey,
   onOpenUrl,
   onClose,
-  onSetProject,
-  onLoadProject,
   onSaveInstructions,
   onSaveMemories,
 }: SettingsPanelProps) {
   const [feedback, setFeedback] = useState('');
-  const [projectName, setProjectName] = useState(project.name ?? '');
   const [globalInstructions, setGlobalInstructions] = useState(context.globalInstructions);
   const [projectInstructions, setProjectInstructions] = useState(context.projectInstructions);
   const [globalMemories, setGlobalMemories] = useState(context.globalMemories);
@@ -65,8 +56,6 @@ export function SettingsPanel({
     context.projectMemories,
   ]);
 
-  const projectNamed = Boolean(project.name);
-
   function showFeedback(message: string) {
     setFeedback(message);
     setTimeout(() => setFeedback(''), 2500);
@@ -79,13 +68,6 @@ export function SettingsPanel({
     }
     onSave({ keys });
     showFeedback('Saved ✓');
-  }
-
-  function handleSetProject() {
-    const trimmed = projectName.trim();
-    if (!trimmed) return;
-    onSetProject(trimmed);
-    showFeedback('Project named ✓ — history now persists across sessions');
   }
 
   function handleSaveInstructions(scope: 'global' | 'project') {
@@ -164,59 +146,6 @@ export function SettingsPanel({
       </div>
 
       <div className="mb-6">
-        <h3 className="mb-1 text-[13px] font-bold uppercase tracking-wide text-text-dim">
-          Project
-        </h3>
-        {projectNamed ? (
-          <p className="mb-2 text-[13px] text-text-dim">
-            <span className="font-medium text-text">{project.name}</span>
-            {' — '}history active
-          </p>
-        ) : (
-          <p className="mb-2 text-[13px] text-text-dim">
-            Fresh session — name this set to save its history, or resume a previous one.
-          </p>
-        )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="min-w-0 flex-1 rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            placeholder="My House Set"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSetProject();
-            }}
-          />
-          <button
-            type="button"
-            className="shrink-0 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-2 text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
-            onClick={handleSetProject}
-          >
-            {projectNamed ? 'Rename' : 'Save'}
-          </button>
-        </div>
-        {namedProjects.length > 0 && (
-          <div className="mt-3">
-            <p className="mb-1.5 text-[12px] text-text-dim">Resume a previous project:</p>
-            <div className="flex flex-col gap-1">
-              {namedProjects.map((p) => (
-                <button
-                  key={p.slug}
-                  type="button"
-                  className="flex cursor-pointer items-center justify-between rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-left text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
-                  onClick={() => onLoadProject(p.slug)}
-                >
-                  <span>{p.name}</span>
-                  <span className="text-[11px] text-text-dim opacity-60">Resume →</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mb-6">
         <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
           Instructions
         </h3>
@@ -255,15 +184,11 @@ export function SettingsPanel({
               value={projectInstructions}
               onChange={(event) => setProjectInstructions(event.target.value)}
               placeholder="This is a lo-fi hip-hop set. Tempo stays at 90 BPM."
-              disabled={!projectNamed}
-              title={projectNamed ? undefined : 'Name this project first'}
             />
             <button
               type="button"
               className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => handleSaveInstructions('project')}
-              disabled={!projectNamed}
-              title={projectNamed ? undefined : 'Name this project first'}
             >
               Save
             </button>
@@ -307,15 +232,11 @@ export function SettingsPanel({
               value={projectMemories}
               onChange={(event) => setProjectMemories(event.target.value)}
               placeholder="8 tracks. Main synth is Operator on Track 3."
-              disabled={!projectNamed}
-              title={projectNamed ? undefined : 'Name this project first'}
             />
             <button
               type="button"
               className="mt-2 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-1.5 text-[12px] text-text transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => handleSaveMemories('project')}
-              disabled={!projectNamed}
-              title={projectNamed ? undefined : 'Name this project first'}
             >
               Save
             </button>

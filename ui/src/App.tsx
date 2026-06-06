@@ -1,5 +1,6 @@
 import { useCallback, useReducer, useRef, useState } from 'react';
 import { ChatPanel } from './components/ChatPanel';
+import { HistoryPanel } from './components/HistoryPanel';
 import { ProjectStaleBanner } from './components/ProjectStaleBanner';
 import { ProviderBar } from './components/ProviderBar';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -11,8 +12,8 @@ import type {
   ClientMessage,
   ConfirmMode,
   ContextState,
-  ProjectState,
   ServerMessage,
+  SessionMeta,
   SettingsPayload,
 } from './types';
 
@@ -22,8 +23,9 @@ export function App() {
   const [debugMode, setDebugMode] = useState(false);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>('guard');
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
-  const [project, setProject] = useState<ProjectState>({ name: null, slug: null });
-  const [namedProjects, setNamedProjects] = useState<Array<{ name: string; slug: string }>>([]);
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [currentSessionId] = useState<string>(() => crypto.randomUUID());
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [context, setContext] = useState<ContextState>({
     globalInstructions: '',
     projectInstructions: '',
@@ -49,7 +51,7 @@ export function App() {
         case 'ready':
           sendMsg({ type: 'get_settings' });
           sendMsg({ type: 'get_context' });
-          sendMsg({ type: 'get_projects' });
+          sendMsg({ type: 'get_sessions' });
           break;
         case 'stream_start':
           if (expectDiagnosticStreamRef.current) {
@@ -98,7 +100,6 @@ export function App() {
           dispatch({ type: 'LOAD_HISTORY', messages: msg.messages });
           break;
         case 'project':
-          setProject({ name: msg.name, slug: msg.slug });
           break;
         case 'context':
           setContext({
@@ -114,8 +115,17 @@ export function App() {
         case 'project_stale':
           setProjectStale(msg.summary);
           break;
-        case 'projects':
-          setNamedProjects(msg.projects);
+        case 'sessions':
+          setSessions(msg.sessions);
+          break;
+        case 'session_loaded':
+          setSessions((prev) =>
+            prev.some((s) => s.id === msg.session.id) ? prev : [msg.session, ...prev],
+          );
+          setHistoryOpen(false);
+          break;
+        case 'session_named':
+          setSessions((prev) => prev.map((s) => (s.id === msg.id ? { ...s, name: msg.name } : s)));
           break;
       }
     },
@@ -177,13 +187,12 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
-  function handleSetProject(name: string) {
-    sendMsg({ type: 'set_project', name });
-    sendMsg({ type: 'get_projects' });
+  function handleLoadSession(id: string) {
+    sendMsg({ type: 'load_session', id });
   }
 
-  function handleLoadProject(slug: string) {
-    sendMsg({ type: 'load_project', slug });
+  function handleNameSession(name: string) {
+    sendMsg({ type: 'name_session', name });
   }
 
   function handleSaveInstructions(scope: 'global' | 'project', content: string) {
@@ -224,6 +233,10 @@ export function App() {
           onSuggestion={handleSuggestion}
           onConfirm={handleConfirm}
           onToggleToolFold={handleToggleToolFold}
+          onOpenHistory={() => {
+            sendMsg({ type: 'get_sessions' });
+            setHistoryOpen(true);
+          }}
         />
 
         <ProjectStaleBanner
@@ -231,6 +244,26 @@ export function App() {
           onUpdate={handleRefreshProjectMemories}
           onDismiss={handleDismissStale}
         />
+
+        {historyOpen && (
+          <>
+            <button
+              type="button"
+              className="absolute inset-0 z-10 cursor-default border-none bg-black/50 p-0"
+              onClick={() => setHistoryOpen(false)}
+              aria-label="Close history"
+            />
+            <div className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-surface shadow-lg">
+              <HistoryPanel
+                sessions={sessions}
+                currentSessionId={currentSessionId}
+                onLoad={handleLoadSession}
+                onName={handleNameSession}
+                onClose={() => setHistoryOpen(false)}
+              />
+            </div>
+          </>
+        )}
 
         {tab === 'settings' && (
           <>
@@ -244,15 +277,11 @@ export function App() {
               <SettingsPanel
                 providers={providers}
                 settings={settings}
-                project={project}
                 context={context}
                 onSave={handleSaveSettings}
                 onClearKey={handleClearKey}
                 onOpenUrl={handleOpenUrl}
                 onClose={handleCloseSettings}
-                namedProjects={namedProjects}
-                onSetProject={handleSetProject}
-                onLoadProject={handleLoadProject}
                 onSaveInstructions={handleSaveInstructions}
                 onSaveMemories={handleSaveMemories}
               />

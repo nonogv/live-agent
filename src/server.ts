@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Song } from '@ableton-extensions/sdk';
-import type { Storage } from './storage.js';
+import type { Storage, SessionMeta } from './storage.js';
 import { buildSystemPrompt } from './agent/chat.js';
 import { getLiveState, handleToolCall } from './live/executor.js';
 import { executeGeneratedTool } from './live/generated-executor.js';
@@ -43,11 +43,15 @@ export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
 ): Promise<LiveAgentServer> {
-  // Rotates every time the extension (re)starts. Used as the storage key for
-  // unnamed projects so they never accidentally share history across sessions.
+  // One UUID per extension lifetime (i.e. per Live-app session).
   const sessionId = randomUUID();
+  const sessionMeta: SessionMeta = { id: sessionId, startedAt: new Date().toISOString() };
+  storage.saveSessionMeta(sessionId, sessionMeta);
 
   const historyRef: { arr: ProviderMessage[] } = { arr: [] };
+  // Tracks the session ID used for saving history. Starts as the current session
+  // but switches when the user loads a previous one from the history panel.
+  const activeSessionRef = { id: sessionId };
   let confirmMode: ConfirmMode = 'guard';
 
   const uiDir = path.join(__dirname, 'ui');
@@ -90,17 +94,23 @@ export async function startServer(
 
     ws.send(JSON.stringify({ type: 'ready' }));
 
-    void handleConnection(ws, storage, historyRef, sessionId).catch((err) => {
-      console.error('[Live Agent] Failed to initialise connection:', err);
-      ws.send(JSON.stringify({ type: 'error', message: String(err) }));
-    });
+    handleConnection(ws, storage, historyRef);
 
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
-        handleMessage(ws, msg, getSong, storage, historyRef, confirmMode, (val) => {
-          confirmMode = val;
-        }).catch((err) => {
+        handleMessage(
+          ws,
+          msg,
+          getSong,
+          storage,
+          historyRef,
+          confirmMode,
+          (val) => {
+            confirmMode = val;
+          },
+          activeSessionRef,
+        ).catch((err) => {
           ws.send(JSON.stringify({ type: 'error', message: String(err) }));
         });
       } catch {
@@ -136,9 +146,9 @@ type WebViewMessage =
   | { type: 'debug'; provider: string; model: string }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
-  | { type: 'set_project'; name: string }
-  | { type: 'load_project'; slug: string }
-  | { type: 'get_projects' }
+  | { type: 'get_sessions' }
+  | { type: 'load_session'; id: string }
+  | { type: 'name_session'; name: string }
   | { type: 'get_context' }
   | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
   | { type: 'save_memories'; scope: 'global' | 'project'; content: string }
@@ -163,24 +173,15 @@ function sendVisibleHistory(ws: WebSocket, history: ProviderMessage[]): void {
 /**
  * Sends the initial project, history, stale-warning, and context frames.
  *
- * Always starts fresh with a session-scoped slug so switching sets within the
- * same Live instance never carries over history from a previous set.  The SDK
- * provides no stable set identifier, so we cannot auto-detect which set is open.
- *
- * The user can name the current session via `set_project` (saves for later) or
- * resume a previously-named project via `load_project` (loads its history now).
+ * Always starts with an empty conversation — the user resumes a specific session
+ * explicitly via the history panel rather than through any automatic detection.
  */
-async function handleConnection(
+function handleConnection(
   ws: WebSocket,
   storage: Storage,
   historyRef: { arr: ProviderMessage[] },
-  sessionId: string,
-): Promise<void> {
-  const slug = `session-${sessionId}`;
-  storage.saveCurrentProject('', slug);
+): void {
   historyRef.arr = [];
-
-  ws.send(JSON.stringify({ type: 'project', name: null, slug }));
   sendVisibleHistory(ws, historyRef.arr);
   ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
 }
@@ -193,6 +194,7 @@ async function handleMessage(
   historyRef: { arr: ProviderMessage[] },
   confirmMode: ConfirmMode,
   setConfirmMode: (val: ConfirmMode) => void,
+  activeSessionRef: { id: string },
 ): Promise<void> {
   switch (msg.type) {
     case 'chat':
@@ -205,6 +207,7 @@ async function handleMessage(
         storage,
         historyRef.arr,
         confirmMode,
+        activeSessionRef.id,
       );
       break;
 
@@ -218,36 +221,37 @@ async function handleMessage(
 
     case 'clear_history':
       historyRef.arr.length = 0;
-      storage.clearHistory();
+      storage.saveSessionHistory(activeSessionRef.id, []);
       ws.send(JSON.stringify({ type: 'history_cleared' }));
       break;
 
-    case 'set_project': {
-      const project = storage.saveCurrentProject(msg.name);
-      // Save current in-memory conversation under the new named slug so nothing
-      // is lost when the user names the session mid-conversation.
-      storage.saveHistory(historyRef.arr, project.slug);
-      ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
+    case 'get_sessions': {
+      const sessions = storage.listSessions();
+      ws.send(JSON.stringify({ type: 'sessions', sessions }));
       break;
     }
 
-    case 'load_project': {
-      const project = storage.loadProjectBySlug(msg.slug);
-      if (!project) {
-        ws.send(JSON.stringify({ type: 'error', message: `Project "${msg.slug}" not found.` }));
+    case 'load_session': {
+      const meta = storage.loadSessionMeta(msg.id);
+      if (!meta) {
+        ws.send(JSON.stringify({ type: 'error', message: `Session not found: ${msg.id}` }));
         break;
       }
-      storage.saveCurrentProject(project.name, project.slug);
-      historyRef.arr = storage.loadHistory(project.slug);
-      ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
+      activeSessionRef.id = msg.id;
+      historyRef.arr = storage.loadSessionHistory(msg.id);
+      ws.send(JSON.stringify({ type: 'session_loaded', session: meta }));
       sendVisibleHistory(ws, historyRef.arr);
-      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
       break;
     }
 
-    case 'get_projects': {
-      const projects = storage.listNamedProjects();
-      ws.send(JSON.stringify({ type: 'projects', projects }));
+    case 'name_session': {
+      const meta = storage.loadSessionMeta(activeSessionRef.id) ?? {
+        id: activeSessionRef.id,
+        startedAt: new Date().toISOString(),
+      };
+      meta.name = msg.name.trim();
+      storage.saveSessionMeta(activeSessionRef.id, meta);
+      ws.send(JSON.stringify({ type: 'session_named', id: activeSessionRef.id, name: meta.name }));
       break;
     }
 
@@ -328,6 +332,7 @@ async function handleChat(
   storage: Storage,
   history: ProviderMessage[],
   confirmMode: ConfirmMode,
+  sessionId: string,
 ): Promise<void> {
   const apiKey = storage.getApiKey(providerId);
   if (!apiKey) {
@@ -452,11 +457,19 @@ async function handleChat(
   } catch (err) {
     const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
     dbg('[Live Agent] Chat error:', stack);
-    // Send full stack to UI so we can see exactly where the error originates.
     ws.send(JSON.stringify({ type: 'error', message: stack }));
     history.pop();
   } finally {
-    storage.saveHistory(history);
+    storage.saveSessionHistory(sessionId, history);
+    // Populate the session preview from the first user message.
+    const firstUser = history.find((m) => m.role === 'user');
+    if (firstUser && typeof firstUser.content === 'string') {
+      const meta = storage.loadSessionMeta(sessionId);
+      if (meta && !meta.preview) {
+        meta.preview = firstUser.content.slice(0, 80);
+        storage.saveSessionMeta(sessionId, meta);
+      }
+    }
   }
 }
 
@@ -543,14 +556,6 @@ structure and style. Return only the bullet points, no preamble.`;
     ws.send(JSON.stringify({ type: 'stream_end' }));
 
     storage.saveMemories('project', fullText);
-
-    const slug = storage.loadCurrentProject()?.slug ?? 'default';
-    storage.saveProjectSnapshot(slug, {
-      trackCount: liveState.trackCount,
-      trackNames: liveState.tracks.map((track) => track.name),
-      tempo: liveState.tempo,
-    });
-
     ws.send(JSON.stringify({ type: 'context_saved' }));
     ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
   } catch (err) {

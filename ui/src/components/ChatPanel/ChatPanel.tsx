@@ -9,6 +9,7 @@ interface ChatPanelProps {
   onSuggestion: (text: string) => void;
   onConfirm: (toolCallId: string, confirmed: boolean) => void;
   onToggleToolFold: (id: string) => void;
+  onOpenHistory: () => void;
 }
 
 /** Full chat panel: message list + input bar. */
@@ -19,6 +20,7 @@ export function ChatPanel({
   onSuggestion,
   onConfirm,
   onToggleToolFold,
+  onOpenHistory,
 }: ChatPanelProps) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -28,7 +30,7 @@ export function ChatPanel({
         onConfirm={onConfirm}
         onToggleToolFold={onToggleToolFold}
       />
-      <ChatInput disabled={streaming} onSend={onSend} />
+      <ChatInput disabled={streaming} onSend={onSend} onOpenHistory={onOpenHistory} />
     </div>
   );
 }

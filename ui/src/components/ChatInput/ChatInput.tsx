@@ -1,12 +1,14 @@
 import { useRef, type KeyboardEvent, type FormEvent } from 'react';
+import { Clock } from 'lucide-react';
 
 interface ChatInputProps {
   disabled: boolean;
   onSend: (text: string) => void;
+  onOpenHistory: () => void;
 }
 
 /** Text input bar with auto-resizing textarea and send button. */
-export function ChatInput({ disabled, onSend }: ChatInputProps) {
+export function ChatInput({ disabled, onSend, onOpenHistory }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function autoResize() {
@@ -39,6 +41,14 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
 
   return (
     <div className="flex shrink-0 items-end gap-3 border-t border-border bg-surface px-4 pt-4 pb-3">
+      <button
+        type="button"
+        className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-default border border-border bg-surface2 text-text-dim transition-colors hover:border-accent hover:text-accent"
+        onClick={onOpenHistory}
+        title="Conversation history"
+      >
+        <Clock size={16} />
+      </button>
       <textarea
         ref={textareaRef}
         className="min-h-10 max-h-[140px] flex-1 resize-none overflow-y-auto rounded-default border border-border bg-surface2 px-3 py-2.5 text-[14px] leading-snug text-text outline-none placeholder:text-text-dim focus:outline focus:outline-1 focus:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
