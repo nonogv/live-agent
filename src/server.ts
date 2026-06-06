@@ -86,6 +86,7 @@ export async function startServer(
 
     ws.send(JSON.stringify({ type: 'ready' }));
 
+    dbg(`[Live Agent] sending history on connect, len=${historyRef.arr.length}`);
     sendVisibleHistory(ws, historyRef.arr);
 
     void sendConnectionContext(ws, getSong, storage).catch((err) => {
@@ -267,8 +268,13 @@ async function handleMessage(
     }
 
     case 'set_project': {
+      dbg(`[Live Agent] set_project name="${msg.name}"`);
       const project = storage.saveCurrentProject(msg.name);
+      dbg(
+        `[Live Agent] set_project saved slug="${project.slug}" historyLen=${historyRef.arr.length}`,
+      );
       historyRef.arr = storage.loadHistory(project.slug);
+      dbg(`[Live Agent] set_project loaded history len=${historyRef.arr.length}`);
       ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
       sendVisibleHistory(ws, historyRef.arr);
       ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
