@@ -6,7 +6,8 @@ import { exec } from 'node:child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Song } from '@ableton-extensions/sdk';
 import type { Storage } from './storage.js';
-import { buildSystemPrompt } from './agent/chat.js';
+import { buildSystemPrompt, type LiveState } from './agent/chat.js';
+import type { ProjectSnapshot } from './storage.js';
 import { getLiveState, handleToolCall } from './live/executor.js';
 import { executeGeneratedTool } from './live/generated-executor.js';
 import { GENERATED_TOOL_SCHEMAS } from './agent/generated-tools.js';
@@ -42,7 +43,7 @@ export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
 ): Promise<LiveAgentServer> {
-  const history = storage.loadHistory();
+  const historyRef: { arr: ProviderMessage[] } = { arr: storage.loadHistory() };
   let confirmMode: ConfirmMode = 'guard';
 
   const uiDir = path.join(__dirname, 'ui');
@@ -85,18 +86,17 @@ export async function startServer(
 
     ws.send(JSON.stringify({ type: 'ready' }));
 
-    // Restore previous conversation for the human — skip internal tool messages.
-    const visibleHistory = history
-      .filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content))
-      .map((m) => ({ role: m.role === 'assistant' ? 'agent' : 'user', content: m.content }));
-    if (visibleHistory.length > 0) {
-      ws.send(JSON.stringify({ type: 'history', messages: visibleHistory }));
-    }
+    sendVisibleHistory(ws, historyRef.arr);
+
+    void sendConnectionContext(ws, getSong, storage).catch((err) => {
+      console.error('[Live Agent] Failed to send connection context:', err);
+      ws.send(JSON.stringify({ type: 'error', message: String(err) }));
+    });
 
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString()) as WebViewMessage;
-        handleMessage(ws, msg, getSong, storage, history, confirmMode, (val) => {
+        handleMessage(ws, msg, getSong, storage, historyRef, confirmMode, (val) => {
           confirmMode = val;
         }).catch((err) => {
           ws.send(JSON.stringify({ type: 'error', message: String(err) }));
@@ -133,14 +133,94 @@ type WebViewMessage =
   | { type: 'console_log'; level: string; message: string }
   | { type: 'debug'; provider: string; model: string }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
-  | { type: 'set_confirm_mode'; mode: ConfirmMode };
+  | { type: 'set_confirm_mode'; mode: ConfirmMode }
+  | { type: 'get_project' }
+  | { type: 'set_project'; name: string }
+  | { type: 'clear_project' }
+  | { type: 'get_context' }
+  | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
+  | { type: 'save_memories'; scope: 'global' | 'project'; content: string }
+  | { type: 'refresh_project_memories'; provider: string; model: string };
+
+/** Sends the user-visible portion of the conversation history to the UI. */
+function sendVisibleHistory(ws: WebSocket, history: ProviderMessage[]): void {
+  const visibleHistory = history
+    .filter(
+      (message) => message.role === 'user' || (message.role === 'assistant' && message.content),
+    )
+    .map((message) => ({
+      role: message.role === 'assistant' ? 'agent' : 'user',
+      content: message.content,
+    }));
+  if (visibleHistory.length > 0) {
+    ws.send(JSON.stringify({ type: 'history', messages: visibleHistory }));
+  }
+}
+
+/**
+ * Builds a human-readable stale summary when the live session diverges from the saved snapshot.
+ * Returns null when the snapshot still matches the current session.
+ */
+function buildStaleSummary(snapshot: ProjectSnapshot, liveState: LiveState): string | null {
+  const currentTrackNames = liveState.tracks.map((track) => track.name);
+  const parts: string[] = [];
+
+  if (snapshot.trackCount !== liveState.trackCount) {
+    parts.push(`Track count changed from ${snapshot.trackCount} to ${liveState.trackCount}`);
+  }
+
+  const snapshotNames = new Set(snapshot.trackNames);
+  const currentNames = new Set(currentTrackNames);
+  const added = currentTrackNames.filter((name) => !snapshotNames.has(name));
+  const removed = snapshot.trackNames.filter((name) => !currentNames.has(name));
+  if (added.length > 0) {
+    parts.push(`Tracks added: ${added.join(', ')}`);
+  }
+  if (removed.length > 0) {
+    parts.push(`Tracks removed: ${removed.join(', ')}`);
+  }
+
+  if (Math.abs(snapshot.tempo - liveState.tempo) >= 5) {
+    parts.push(`Tempo changed from ${snapshot.tempo} to ${liveState.tempo} BPM`);
+  }
+
+  return parts.length > 0 ? `${parts.join('. ')}.` : null;
+}
+
+/** Sends project, stale-warning, and context frames after a WebSocket connection. */
+async function sendConnectionContext(
+  ws: WebSocket,
+  getSong: () => Song<'1.0.0'>,
+  storage: Storage,
+): Promise<void> {
+  const project = storage.loadCurrentProject();
+  const slug = project?.slug ?? 'default';
+  ws.send(
+    JSON.stringify({
+      type: 'project',
+      name: project?.name ?? null,
+      slug: project?.slug ?? null,
+    }),
+  );
+
+  const liveState = await getLiveState(getSong());
+  const snapshot = storage.loadProjectSnapshot(slug);
+  if (snapshot) {
+    const summary = buildStaleSummary(snapshot, liveState);
+    if (summary) {
+      ws.send(JSON.stringify({ type: 'project_stale', summary }));
+    }
+  }
+
+  ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
+}
 
 async function handleMessage(
   ws: WebSocket,
   msg: WebViewMessage,
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
-  history: ProviderMessage[],
+  historyRef: { arr: ProviderMessage[] },
   confirmMode: ConfirmMode,
   setConfirmMode: (val: ConfirmMode) => void,
 ): Promise<void> {
@@ -153,7 +233,7 @@ async function handleMessage(
         msg.model,
         getSong,
         storage,
-        history,
+        historyRef.arr,
         confirmMode,
       );
       break;
@@ -167,9 +247,56 @@ async function handleMessage(
       break;
 
     case 'clear_history':
-      history.length = 0;
+      historyRef.arr.length = 0;
       storage.clearHistory();
       ws.send(JSON.stringify({ type: 'history_cleared' }));
+      break;
+
+    case 'get_project': {
+      const project = storage.loadCurrentProject();
+      ws.send(
+        JSON.stringify({
+          type: 'project',
+          name: project?.name ?? null,
+          slug: project?.slug ?? null,
+        }),
+      );
+      break;
+    }
+
+    case 'set_project': {
+      const project = storage.saveCurrentProject(msg.name);
+      historyRef.arr = storage.loadHistory(project.slug);
+      ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
+      sendVisibleHistory(ws, historyRef.arr);
+      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
+      break;
+    }
+
+    case 'clear_project':
+      storage.clearCurrentProject();
+      historyRef.arr = storage.loadHistory('default');
+      ws.send(JSON.stringify({ type: 'project', name: null, slug: null }));
+      sendVisibleHistory(ws, historyRef.arr);
+      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
+      break;
+
+    case 'get_context':
+      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
+      break;
+
+    case 'save_instructions':
+      storage.saveInstructions(msg.scope, msg.content);
+      ws.send(JSON.stringify({ type: 'context_saved' }));
+      break;
+
+    case 'save_memories':
+      storage.saveMemories(msg.scope, msg.content);
+      ws.send(JSON.stringify({ type: 'context_saved' }));
+      break;
+
+    case 'refresh_project_memories':
+      await handleRefreshProjectMemories(ws, msg.provider, msg.model, getSong, storage);
       break;
 
     case 'get_settings':
@@ -254,7 +381,8 @@ async function handleChat(
     // Gemini thinking-model thought_signatures (which are tied to the session
     // context) remain valid across rounds. The handle registry is refreshed each
     // round separately (see below) so tool calls always resolve current handles.
-    const systemPrompt = buildSystemPrompt(await getLiveState(song), ALL_TOOL_SCHEMAS);
+    const context = storage.loadPromptContext();
+    const systemPrompt = buildSystemPrompt(await getLiveState(song), ALL_TOOL_SCHEMAS, context);
 
     // Agentic loop: keep calling the provider until it returns a final text
     // response with no tool calls (max 10 rounds as a safety net).
@@ -395,6 +523,72 @@ async function requestConfirmation(
       resolve(false);
     }, 30_000);
   });
+}
+
+/** Regenerates project memories from the current Live session via a single LLM turn. */
+async function handleRefreshProjectMemories(
+  ws: WebSocket,
+  providerId: string,
+  model: string,
+  getSong: () => Song<'1.0.0'>,
+  storage: Storage,
+): Promise<void> {
+  const apiKey = storage.getApiKey(providerId);
+  if (!apiKey) {
+    ws.send(
+      JSON.stringify({
+        type: 'error',
+        message: `No API key found for ${providerId}. Add it in Settings.`,
+      }),
+    );
+    return;
+  }
+
+  const liveState = await getLiveState(getSong());
+  const currentMemories = storage.loadMemories('project');
+  const systemPrompt = `You are updating project memories for a music producer using Live Agent.
+Given the current Ableton session state and the existing project memories,
+rewrite the memories as 3-7 concise bullet points capturing the project's
+structure and style. Return only the bullet points, no preamble.`;
+  const userContent = `Current session:\nTempo: ${liveState.tempo} BPM\nTracks: ${liveState.tracks.map((track) => track.name).join(', ')}\n\nExisting memories:\n${currentMemories || '(none)'}`;
+
+  ws.send(JSON.stringify({ type: 'stream_start' }));
+
+  try {
+    const provider = createProvider(providerId, apiKey);
+    let fullText = '';
+
+    for await (const chunk of provider.chat({
+      model,
+      systemPrompt,
+      messages: [{ role: 'user', content: userContent }],
+      tools: [],
+    })) {
+      if (chunk.type === 'text') {
+        fullText += chunk.text;
+        ws.send(JSON.stringify({ type: 'stream_chunk', text: chunk.text }));
+      }
+    }
+
+    ws.send(JSON.stringify({ type: 'stream_end' }));
+
+    storage.saveMemories('project', fullText);
+
+    const slug = storage.loadCurrentProject()?.slug ?? 'default';
+    storage.saveProjectSnapshot(slug, {
+      trackCount: liveState.trackCount,
+      trackNames: liveState.tracks.map((track) => track.name),
+      tempo: liveState.tempo,
+    });
+
+    ws.send(JSON.stringify({ type: 'context_saved' }));
+    ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
+  } catch (err) {
+    const stack = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    dbg('[Live Agent] Refresh project memories error:', stack);
+    ws.send(JSON.stringify({ type: 'error', message: stack }));
+    throw err;
+  }
 }
 
 async function handleDebug(
