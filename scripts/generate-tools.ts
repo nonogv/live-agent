@@ -73,7 +73,9 @@ export const EXCLUDED_SDK_CLASSES: Record<string, string> = {
   Application: 'Song is available from extension context — no separate tool needed',
   Commands: 'Extension command registration — not session control',
   Environment: 'Filesystem paths and locale — not music production',
-  Resources: 'renderPreFxAudio / importIntoProject — future custom tools',
+  Resources:
+    'Lives on ExtensionContext (not Song) — resources_import_into_project custom tool; ' +
+    'SDK has no Live Browser / pack preset API (only copy external files into the project)',
   Ui: 'Extension UI (dialogs, context menus) — not agent-controllable',
   DataModelObject: 'Base class — parent getter is navigational only',
   ChainMixer: 'Exposed via track/chain mixer parameters in get_live_state',
@@ -85,6 +87,23 @@ export const EXCLUDED_SDK_CLASSES: Record<string, string> = {
 
 /** Individual SDK members excluded from tool generation despite being on a TARGET_CLASS. */
 export const EXCLUDED_SDK_MEMBERS: Record<string, string> = {};
+
+/**
+ * Overrides for auto-generated tool descriptions (SDK JSDoc is often too terse).
+ * Applied in {@link discoverToolsFromSdk}.
+ */
+export const TOOL_DESCRIPTION_OVERRIDES: Record<string, string> = {
+  midi_track_create_midi_clip:
+    'Creates a MIDI clip on the **arrangement timeline** (linear view). ' +
+    'For loopable clips in the session grid / main view, use clip_slot_create_midi_clip instead.',
+  clip_slot_create_midi_clip:
+    'Creates a MIDI clip in the **session grid** (clip slots — the main performance view). ' +
+    'Use slot_index 0 for the first row. Preferred when the user wants loopable session clips.',
+  track_insert_device:
+    'Inserts a built-in Live device. Drum Rack and Sampler start **empty** (no kit/sample). ' +
+    'For immediate sound use Operator, Analog, or Drift on MIDI tracks. ' +
+    'To load audio, import the file with resources_import_into_project then simpler_replace_sample.',
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -207,7 +226,7 @@ function extractMethods(cls: ClassDeclaration, className: string): GeneratedTool
 
     tools.push({
       name: toolName,
-      description: jsDoc || `Calls ${className}.${name}().`,
+      description: TOOL_DESCRIPTION_OVERRIDES[toolName] ?? jsDoc ?? `Calls ${className}.${name}().`,
       targetClass: className,
       method: name,
       params,
@@ -248,7 +267,8 @@ function extractSetters(cls: ClassDeclaration, className: string): GeneratedTool
 
     tools.push({
       name: toolName,
-      description: jsDoc || `Sets the ${propName} property on ${className}.`,
+      description:
+        TOOL_DESCRIPTION_OVERRIDES[toolName] ?? jsDoc ?? `Sets the ${propName} property on ${className}.`,
       targetClass: className,
       method: `set ${propName}`,
       params: [valueParam],
@@ -647,6 +667,7 @@ function writeExecutor(tools: GeneratedTool[]) {
     `  type Song,`,
     `} from "@ableton-extensions/sdk";`,
     `import { resolveHandle } from "./handle-registry.js";`,
+    `import { toJsonSafe } from "../json.js";`,
     ``,
     `// ─── Handle ID parsing ─────────────────────────────────────────────────────`,
     ``,
@@ -760,18 +781,8 @@ function writeExecutor(tools: GeneratedTool[]) {
     `  throw new Error(\`TakeLane "\${normalized}" not found.\`);`,
     `}`,
     ``,
-    `function serializeHandle(obj: { handle: { id: bigint } } | null) {`,
-    `  if (!obj) return null;`,
-    `  return { id: obj.handle.id.toString() };`,
-    `}`,
-    ``,
     `function serializeResult(result: unknown): unknown {`,
-    `  if (result === null || result === undefined) return null;`,
-    `  if (typeof result === "object" && "handle" in (result as object)) {`,
-    `    const obj = result as { handle: { id: bigint }; name?: string };`,
-    `    return { id: obj.handle.id.toString(), name: obj.name ?? undefined };`,
-    `  }`,
-    `  return result;`,
+    `  return toJsonSafe(result);`,
     `}`,
     ``,
     `function findByHandleClass(song: Song<"1.0.0">, cls: string, id: string | number): unknown {`,

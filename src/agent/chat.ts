@@ -202,15 +202,12 @@ function renderTrack(t: TrackInfo): string {
     : '';
   const mixerStr = `\n      Mixer: vol=${t.mixer.volume.value.toFixed(2)}(id:${fmtId(t.mixer.volume.id)}) pan=${t.mixer.panning.value.toFixed(2)}(id:${fmtId(t.mixer.panning.id)})${sendStr}`;
   const devStr = t.devices.length ? '\n' + t.devices.map((d) => renderDevice(d)).join('\n') : '';
-  // Only show session clips in detail; arrangement clips are summarized by count.
-  const clipStr = t.sessionClips.map((c) => renderClip(c, '      ')).join('\n');
-  const arrangementHint =
-    t.arrangementClips.length > 0
-      ? `\n      (${t.arrangementClips.length} arrangement clips — call get_live_state to read)`
-      : '';
+  const sessionClipStr = t.sessionClips.map((c) => renderClip(c, '      ')).join('\n');
+  const arrangementClipStr = t.arrangementClips.map((c) => renderClip(c, '      ')).join('\n');
+  const clipStr = [sessionClipStr, arrangementClipStr].filter(Boolean).join('\n');
   // Show take-lane count only; listing names/ids saved for when the LLM needs them
   const laneHint = t.takeLanes.length ? `\n      TakeLanes: ${t.takeLanes.length}` : '';
-  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${arrangementHint}${laneHint}`;
+  return `  [${t.type}] "${t.name}" (id:${fmtId(t.id)})${flagStr}${mixerStr}${devStr}${clipStr ? '\n' + clipStr : ''}${laneHint}`;
 }
 
 /**
@@ -280,11 +277,23 @@ ${mainStr}
 
 ## Key workflows
 - Creating a track: \`song_create_midi_track\` / \`song_create_audio_track\`, then \`track_set_name\` immediately (create has no name param).
-- Writing MIDI: \`clip_slot_create_midi_clip\` → \`midi_clip_set_notes\` with NoteDescription objects \`{pitch, startTime, duration, velocity, releaseVelocity?, muted?, probability?}\`.
+- **Session clips (main grid):** \`clip_slot_create_midi_clip\` on slot 0 → \`midi_clip_set_notes\`. Do **not** use \`midi_track_create_midi_clip\` unless the user explicitly wants arrangement-timeline clips.
+- **Learning & reference:** call \`web_search\` when the user wants to learn, look something up, or asks about production technique, mixing, sound design, Ableton Live workflows, or built-in devices/plugins — not only song tabs. Pass focused queries (e.g. "sidechain compression Ableton", "Operator FM bass site:ableton.com"). Prefer \`source: "tab"\` or \`source: "docs"\` excerpts over guessing; cite the source briefly when teaching. Combine explanation with action when helpful — demonstrate in the session using tools after looking up the technique.
+- **Reading ASCII bass tab:** standard 4-string bass tuning is E1 A1 D2 G2. The four rows in a tab are (top→bottom) G D A E strings. A number on a row = fret played on that string; MIDI pitch = open-string MIDI + fret number. Open MIDI values: E1=28, A1=33, D2=38, G2=43. Example: A string fret 5 → 33+5=38=D2; E string fret 7 → 28+7=35=B1. Count the number of note symbols per beat to determine whether notes are quarter (1 per beat), eighth (2 per beat), or sixteenth (4 per beat).
+- **Reading ASCII guitar tab:** standard 6-string guitar tuning is E2 A2 D3 G3 B3 E4. Open MIDI values: E2=40, A2=45, D3=50, G3=55, B3=59, E4=64. Drop-D lowers only the bottom E string to D2=38. Same fret math: open MIDI + fret number = pitch. Tab rows are (top→bottom) E4 B3 G3 D3 A2 E2.
+- **GM drum map (for drum programming):** kick=36, snare=38, closed hi-hat=42, open hi-hat=46, low tom=41, mid tom=47, high tom=50, crash cymbal=49, ride cymbal=51, rim shot=37, clap=39, cowbell=56. These are the standard MIDI note numbers to use in \`midi_clip_set_notes\` when building drum patterns.
+- **Tab search queries:** always include the song title and "bass tab" when searching for note detail (e.g. "With or Without You U2 bass tab"). If the first search returns links without tab text, do not repeat the same query — try a shorter, more direct query instead.
+- Audible MIDI: insert **Operator**, **Analog**, or **Drift** for immediate synth sound. Drum Rack / Sampler start empty — load audio via \`resources_import_into_project\` + \`simpler_replace_sample\`, or use a synth instead.
+- Writing MIDI notes: \`midi_clip_set_notes\` with NoteDescription objects \`{pitch, startTime, duration, velocity, releaseVelocity?, muted?, probability?}\`.
 - Tweaking a device parameter: get its id from the session state above, then \`device_parameter_set_value\`. The state shows current value and [min–max] range.
 - Mixer (volume/pan/sends): use \`device_parameter_set_value\` with the mixer parameter ids shown in the track's Mixer line.
+- Cleaning a new set: delete extra tracks but Live always keeps at least one — clear devices on the last track or repurpose it instead of deleting everything.
+- Track ids in the session overview go stale after deletes/creates. Tool results include a \`liveSnapshot\` with current ids when the layout changes — use those ids for follow-up steps.
 - When ids are stale: call \`get_live_state\` to refresh the full snapshot.
+- When a tool returns \`{ ok: false, error: "..." }\`, read the error and \`liveSnapshot\` if present, then try an alternative — do not stop after a single failure.
+- Long tasks pause every ~5 steps for user approval (Review/Guard modes only; Auto skips step prompts) — keep going efficiently within each batch.
 - Inserting into a rack: use \`rack_device_insert_chain\` to add a chain, then \`chain_insert_device\` to add devices inside it.
+- **Before claiming a task is done:** call \`get_live_state\` and verify session clips (Clip[0]…), notes, tempo, and audible devices match the request. Never claim success if only arrangement clips exist when session clips were requested, or if Drum Rack/Sampler have no loaded sounds.
 
 ## Rules
 - IDs are handle strings — they change if objects are moved. Refresh with \`get_live_state\` when unsure.

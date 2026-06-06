@@ -267,7 +267,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('inherits the Song tempo');
   });
 
-  it('shows arrangement clip count hint without listing arrangement clips', () => {
+  it('lists arrangement clips in the track overview', () => {
     const state: LiveState = {
       ...emptyState,
       trackCount: 1,
@@ -311,9 +311,9 @@ describe('buildSystemPrompt', () => {
       ],
     };
     const prompt = buildSystemPrompt(state, minimalTools);
-    expect(prompt).toContain('2 arrangement clips');
-    expect(prompt).not.toContain('Arrangement Part');
-    expect(prompt).not.toContain('id:"arr-1"');
+    expect(prompt).toContain('ArrangementClip');
+    expect(prompt).toContain('Arrangement Part');
+    expect(prompt).toContain('id:"arr-1"');
   });
 
   describe('prompt context injection', () => {
@@ -423,5 +423,47 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('send-b-id');
     expect(prompt).toContain('id:"vol-id"');
     expect(prompt).toContain('id:"pan-id"');
+  });
+
+  it('instructs the model to recover from tool errors instead of stopping', () => {
+    const prompt = buildSystemPrompt(emptyState, minimalTools);
+    expect(prompt).toContain('{ ok: false, error: "..." }');
+    expect(prompt).toContain('do not stop after a single failure');
+  });
+
+  it('documents the last-track constraint and liveSnapshot on layout changes', () => {
+    const prompt = buildSystemPrompt(emptyState, minimalTools);
+    expect(prompt).toContain('always keeps at least one');
+    expect(prompt).toContain('liveSnapshot');
+  });
+
+  it('mentions batch continue checkpoints for long tasks', () => {
+    const prompt = buildSystemPrompt(emptyState, minimalTools);
+    expect(prompt).toContain('pause every ~5 steps');
+    expect(prompt).toContain('Auto skips step prompts');
+  });
+
+  it('documents web_search, session clips, and completion verification', () => {
+    const prompt = buildSystemPrompt(emptyState, minimalTools);
+    expect(prompt).toContain('web_search');
+    expect(prompt).toContain('clip_slot_create_midi_clip');
+    expect(prompt).toContain('Before claiming a task is done');
+  });
+
+  it('documents learning and production reference via web_search', () => {
+    const prompt = buildSystemPrompt(emptyState, minimalTools);
+    expect(prompt).toContain('Learning & reference');
+    expect(prompt).toContain('production technique');
+    expect(prompt).toContain('source: "docs"');
+  });
+
+  it('includes guitar tab tuning and GM drum map', () => {
+    const prompt = buildSystemPrompt(emptyState, minimalTools);
+    expect(prompt).toContain('guitar tab');
+    expect(prompt).toContain('E2=40');
+    expect(prompt).toContain('GM drum map');
+    expect(prompt).toContain('kick=36');
+    expect(prompt).toContain('snare=38');
+    expect(prompt).toContain('closed hi-hat=42');
   });
 });
