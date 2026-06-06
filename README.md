@@ -174,8 +174,4 @@ See [`ROADMAP.md`](./ROADMAP.md) for milestones, [`CHANGELOG.md`](./CHANGELOG.md
 
 ## License
 
-**Apache 2.0 with Commons Clause**
-
-Free to use, modify, and distribute for personal and non-commercial use. You may not sell the software or offer it as a hosted service without a separate commercial license from the author.
-
-See [LICENSE](./LICENSE) for the full terms.
+MIT — see [LICENSE](./LICENSE).

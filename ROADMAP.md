@@ -50,6 +50,6 @@ Max for Live patch generation, M4L bridge for custom device control, cloud plugi
 
 ## Decisions pending
 
-- Finalize license strategy (Apache 2.0 + Commons Clause — currently provisional)
+- ~~Finalize license strategy~~ — MIT ([#32](https://github.com/nonogv/live-agent/issues/32))
 - Public release timing
 - Ableton extension marketplace distribution strategy
