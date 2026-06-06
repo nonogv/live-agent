@@ -1,176 +1,148 @@
 # Live Agent
 
-AI-powered assistant built into Ableton Live. Chat with GPT, Claude, or Gemini to control your session using natural language.
+An AI assistant built into Ableton Live. Describe what you want in plain English — Live Agent executes it directly on your session.
 
-> "Create a MIDI track named Bass." → Done.
+> *"Create a bass track with a Moog preset and a 16-step bassline in D minor"* → Done.
+
+<!-- DEMO VIDEO PLACEHOLDER -->
+<!-- Replace this comment with an embedded video or GIF once available -->
+
+---
 
 ## What it does
 
-Live Agent is an Ableton Extension that opens a chat panel inside Live. You type instructions in plain English and the agent executes them directly on your session using the Ableton Extensions SDK.
+Live Agent opens a chat panel inside Live via the [Ableton Extensions SDK](https://ableton.github.io/extensions-sdk/). You describe what you want; the agent calls the right SDK methods to make it happen — creating tracks, setting tempos, adding clips, adjusting devices, and more.
 
-Tool schemas are **auto-generated** from the SDK type definitions — every method and setter the SDK exposes becomes a callable tool. This means coverage stays in sync with SDK updates automatically.
+**Full SDK coverage.** Tool schemas are auto-generated directly from the SDK type definitions — all 15 SDK classes, every method and setter, kept in sync automatically when the SDK updates. No hand-written tool definitions.
 
-**Free to use, always.** The basic extension works with free-tier or local models — no account required, no charges from us. A student with a free Gemini key can use Live Agent the same way a professional does. Optional cloud features may be introduced in the future, but the core tool stays free.
+**Multi-step reasoning.** The agent chains multiple tool calls when needed. "Duplicate the drum rack on track 3 to a new track and set its volume to -6dB" runs as a sequence, not a single command.
 
-**Supported AI providers:**
+**Three confirmation modes** to match how much you trust the agent:
+- **Review** — approve every action before it runs
+- **Guard** — auto-approve safe actions, confirm destructive ones
+- **Auto** — run everything immediately
+
+**Undo is native.** Every agent action is an ordinary Live edit — ⌘Z reverts them one step at a time.
+
+**Free to use, always.** Works with free-tier models (Gemini Flash has a free API key, no credit card required). No subscription, no account, no charges from this project.
+
+**Supported providers:**
+
 | Provider | Models |
 |---|---|
 | OpenAI | GPT-5.5, GPT-5.5 Pro, GPT-5.4, GPT-5.4 mini, o3, o3 Pro |
 | Anthropic | Claude Opus 4.8, Claude Sonnet 4.6, Claude Haiku 4.5 |
 | Google | Gemini 3.5 Flash, Gemini 3.1 Pro (preview), Gemini 3.1 Flash-Lite |
 
-Your API keys are stored locally in Live's extension storage and never leave your computer.
+API keys are stored locally in Live's extension storage and never leave your machine.
+
+---
 
 ## Requirements
 
-> **Note:** Live Agent is currently a developer preview — there is no packaged installer yet. You need to build from source.
+**To run:**
 
-**To run the extension:**
-
-- **Ableton Live 12** version **12.4.5 beta** or later (any edition that supports Extensions)
-- An API key from at least one AI provider:
-  - [Google AI Studio](https://aistudio.google.com) — **free tier available**, no credit card required. Good starting point.
+- **Ableton Live 12** version **12.4.5 beta** or later (Extensions require Live Suite)
+- An API key from at least one supported provider:
+  - [Google AI Studio](https://aistudio.google.com) — free tier, no credit card required
   - [OpenAI](https://platform.openai.com) — pay-as-you-go
   - [Anthropic](https://console.anthropic.com) — pay-as-you-go
 
-**To build from source (additional):**
+**To build from source:**
 
-- **Node.js v24.16.0** (LTS) or higher — [download](https://nodejs.org)
-- The Ableton Extensions SDK (see Setup below)
+- Node.js v24.16.0 or higher — [download](https://nodejs.org)
+
+---
 
 ## Setup
 
-### 1. Install dependencies
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/nonogv/live-agent.git
 cd live-agent
 npm install
 ```
 
-### 2. Install the Ableton Extensions SDK
+The Ableton Extensions SDK is vendored in `vendor/` — `npm install` handles it automatically.
 
-The SDK tarballs are vendored in `vendor/` so `npm install` (step 1) already covers this. If you need to upgrade to a newer SDK release, copy the new `.tgz` files into `vendor/`, update the paths in `package.json`, and run `npm install` again.
-
-### 3. (Optional) Regenerate tools
-
-The generated tool schemas and executor are already committed. If you update the SDK and want to pick up new API surface:
-
-```bash
-npm run generate
-```
-
-This re-parses the SDK types and rewrites `src/agent/generated-tools.ts` and `src/live/generated-executor.ts`.
-
-### 4. Build
+### 2. Build
 
 ```bash
 npm run build
 ```
 
-### 5. Load in Live
+### 3. Load in Live
 
 - Open Live 12.4.5 beta
 - Go to **Live → Preferences → Extensions**
 - Enable **Developer Mode**
 - Point Live to this project folder
-- Run `npm start` — Live will connect to your extension and hot-reload on save
+- Run `npm start` — Live connects and hot-reloads on save
 
-### 6. Add your API key
+### 4. Add your API key
 
 - Right-click any track → **Live Agent**
-- Click the **gear icon** in the bottom control bar to open Settings
-- Paste your API key for at least one provider
-- Click the **chat icon** in the same bar to return and start talking
+- Click the **gear icon** in the bottom bar → paste your API key
+- Click the **chat icon** to return and start talking
 
-## UI
-
-The chat webview opens in a **600×820 px** modal dialog (fixed size — the Extensions SDK does not support resizable or percentage-based dimensions).
-
-Layout (top to bottom):
-
-1. **Chat or Settings** — message list + input, or API key form
-2. **Bottom control bar** — single row with provider/model selectors, debug and confirmation mode, diagnose/clear actions (chat only), and one **panel toggle** (gear ↔ chat icon)
-
-The panel toggle swaps between chat and settings; chat-only controls hide while you are on Settings.
-
-**Undo:** Agent changes are ordinary Live edits — use **⌘Z** (or Live's Edit → Undo) in the main Live window to revert them, typically one step per tool action. There is no in-panel undo button; dismiss or move focus away from the agent dialog if you need to reach Live's undo stack.
+---
 
 ## Development
 
 ```bash
-# Watch mode — recompiles on save, Live hot-reloads the extension
-npm start
-
-# Type-check only
-npm run typecheck
-
-# Regenerate tool schemas from SDK types
-npm run generate
+npm start          # watch mode — recompiles on save, Live hot-reloads
+npm run typecheck  # type-check only
+npm run generate   # regenerate tool schemas from SDK types
+npm test           # run tests
 ```
 
-## Project structure
+### How tool generation works
+
+`scripts/generate-tools.ts` reads the SDK's TypeScript type definitions using `ts-morph` and writes two files:
+
+- `src/agent/generated-tools.ts` — function schemas the AI model sees
+- `src/live/generated-executor.ts` — the dispatcher that maps tool calls to SDK method invocations
+
+Run `npm run generate` after updating the SDK to pick up any new API surface automatically.
+
+### Project structure
 
 ```
 scripts/
-└── generate-tools.ts       # Reads SDK types via ts-morph, writes generated-tools + generated-executor
+└── generate-tools.ts       # SDK type parser → tool schema + executor generator
 
 src/
 ├── extension.ts            # Entry point — registers context menu, starts server, opens webview
 ├── server.ts               # Local HTTP + WebSocket server, agentic loop, confirmation flow
-├── storage.ts              # Persistent key + settings storage (JSON file in Live's storage dir)
+├── storage.ts              # Persistent key + settings storage
 ├── providers/
 │   ├── index.ts            # ProviderAdapter interface, model list, factory
-│   └── http-stream.ts      # OpenAI / Anthropic / Gemini streaming via node:https (no SDK deps)
+│   └── http-stream.ts      # Streaming over node:https — no provider SDK dependencies
 ├── agent/
 │   ├── chat.ts             # System prompt builder + LiveState types
 │   ├── safety.ts           # DESTRUCTIVE_TOOLS set for confirmation mode
 │   ├── tools.ts            # Custom tool schema (get_live_state)
-│   └── generated-tools.ts  # Auto-generated SDK tool schemas — do not edit
-├── live/
-│   ├── executor.ts         # getLiveState + custom tool handler
-│   ├── handle-registry.ts  # Float64 → exact BigInt string registry (precision recovery)
-│   └── generated-executor.ts  # Auto-generated SDK dispatcher — do not edit
-ui/src/                    # React + Vite webview (built to dist/ui/)
-├── App.tsx                 # Root layout — content area + bottom control bar
-├── appTab.ts               # Chat ↔ settings toggle helpers
-├── chatReducer.ts          # Chat message state machine
-├── types.ts                # Shared WebSocket message types
+│   └── generated-tools.ts  # Auto-generated — do not edit
+└── live/
+    ├── executor.ts         # getLiveState + custom tool handler
+    ├── handle-registry.ts  # Float64 → BigInt precision recovery
+    └── generated-executor.ts  # Auto-generated — do not edit
+
+ui/src/                     # React + Vite webview
+├── App.tsx
+├── chatReducer.ts
+├── types.ts
 └── components/             # ChatPanel, ChatInput, MessageBubble, ProviderBar, SettingsPanel, …
 ```
 
+---
+
 ## Roadmap
 
-> **Note:** This roadmap is provisional. The project is in private alpha — strategy and priorities will be revisited before any public release.
->
-> Current state: `0.2.0-alpha.1` — developer preview, not publicly released.
+See [`ROADMAP.md`](./ROADMAP.md) for milestones and [`CHANGELOG.md`](./CHANGELOG.md) for what has shipped.
 
-See [`ROADMAP.md`](./ROADMAP.md) for milestones, [`CHANGELOG.md`](./CHANGELOG.md) for what shipped, and the [GitHub Project board](https://github.com/users/nonogv/projects/2) for open issues.
-
-**Shipped (alpha)**
-
-- ✅ Multi-step agentic loop with tool chaining
-- ✅ Full SDK coverage — all 15 classes, auto-generated schemas + executor
-- ✅ Three confirmation modes: **Review** / **Guard** / **Auto**
-- ✅ Conversation persistence across Live restarts
-- ✅ React + Vite UI with Tailwind, markdown rendering, foldable tool calls
-- ✅ OpenAI, Anthropic, and Google Gemini support (streaming, free tiers)
-
-**v1 — Developer release** (in progress)
-
-- Provider / model UX polish (default to cheapest model, settings popup)
-- Remaining UI bugs and token-economy improvements
-- SDK completeness audit
-
-**v2 — Power features**
-
-- Consumer installer, managed auth, zero-setup for non-developer musicians
-- Producer rules — persistent per-session agent instructions
-- Rich context — @track / @clip / @device mentions in chat
-- Local model support (Ollama, no API key required)
-
-**v3 — Platform**
-
-- Cloud sync, collaborative sessions
+---
 
 ## License
 
