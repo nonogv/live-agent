@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { Storage } from './storage.js';
+import { Storage, projectNameToSlug } from './storage.js';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -235,5 +235,176 @@ describe('Storage — conversation history', () => {
     expect(s.loadHistory()).toHaveLength(1);
     s.clearHistory();
     expect(s.loadHistory()).toEqual([]);
+  });
+});
+
+describe('Storage — project slug', () => {
+  it('derives a slug from the project name', () => {
+    expect(projectNameToSlug('My House Set 2026')).toBe('my-house-set-2026');
+  });
+});
+
+describe('Storage — current project', () => {
+  it('round-trips saveCurrentProject / loadCurrentProject / clearCurrentProject', () => {
+    const s = makeStorage();
+    expect(s.loadCurrentProject()).toBeNull();
+
+    const saved = s.saveCurrentProject('My House Set 2026');
+    expect(saved).toEqual({ name: 'My House Set 2026', slug: 'my-house-set-2026' });
+    expect(s.loadCurrentProject()).toEqual(saved);
+
+    s.clearCurrentProject();
+    expect(s.loadCurrentProject()).toBeNull();
+  });
+
+  it('persists current project across Storage instances', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+
+    const s1 = makeStorageAt(dir);
+    s1.saveCurrentProject('Deep House');
+
+    const s2 = makeStorageAt(dir);
+    expect(s2.loadCurrentProject()).toEqual({
+      name: 'Deep House',
+      slug: 'deep-house',
+    });
+  });
+});
+
+describe('Storage — per-project history', () => {
+  it('uses slug "default" when no project is set', () => {
+    const s = makeStorage();
+    const messages = [{ role: 'user' as const, content: 'Hello default' }];
+    s.saveHistory(messages);
+    expect(s.loadHistory()).toEqual(messages);
+    expect(s.loadHistory('default')).toEqual(messages);
+  });
+
+  it('isolates history between projects', () => {
+    const s = makeStorage();
+    const projectA = s.saveCurrentProject('Project Alpha');
+    const messagesA = [{ role: 'user' as const, content: 'Alpha chat' }];
+    s.saveHistory(messagesA);
+
+    const projectB = s.saveCurrentProject('Project Beta');
+    const messagesB = [{ role: 'user' as const, content: 'Beta chat' }];
+    s.saveHistory(messagesB);
+
+    expect(s.loadHistory(projectB.slug)).toEqual(messagesB);
+    expect(s.loadHistory(projectA.slug)).toEqual(messagesA);
+    expect(s.loadHistory()).toEqual(messagesB);
+  });
+
+  it('clearHistory only removes history for the resolved slug', () => {
+    const s = makeStorage();
+    s.saveCurrentProject('Project Alpha');
+    s.saveHistory([{ role: 'user' as const, content: 'Alpha' }], 'project-alpha');
+
+    s.saveCurrentProject('Project Beta');
+    s.saveHistory([{ role: 'user' as const, content: 'Beta' }], 'project-beta');
+
+    s.clearHistory('project-alpha');
+    expect(s.loadHistory('project-alpha')).toEqual([]);
+    expect(s.loadHistory('project-beta')).toEqual([{ role: 'user', content: 'Beta' }]);
+  });
+});
+
+describe('Storage — legacy history migration', () => {
+  it('copies root history.json to projects/default/history.json once', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+
+    const legacyMessages = [{ role: 'user' as const, content: 'Legacy chat' }];
+    fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify(legacyMessages));
+
+    const s = makeStorageAt(dir);
+    expect(s.loadHistory()).toEqual(legacyMessages);
+    expect(s.loadHistory('default')).toEqual(legacyMessages);
+    expect(fs.existsSync(path.join(dir, 'projects', 'default', 'history.json'))).toBe(true);
+
+    const s2 = makeStorageAt(dir);
+    expect(s2.loadHistory('default')).toEqual(legacyMessages);
+  });
+
+  it('does not overwrite an existing projects/default/history.json', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-agent-test-'));
+    tmpDirs.push(dir);
+
+    const legacyMessages = [{ role: 'user' as const, content: 'Legacy only' }];
+    const defaultMessages = [{ role: 'user' as const, content: 'Already migrated' }];
+    fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify(legacyMessages));
+    fs.mkdirSync(path.join(dir, 'projects', 'default'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'projects', 'default', 'history.json'),
+      JSON.stringify(defaultMessages),
+    );
+
+    const s = makeStorageAt(dir);
+    expect(s.loadHistory('default')).toEqual(defaultMessages);
+  });
+});
+
+describe('Storage — instructions and memories', () => {
+  it('round-trips global instructions and memories', () => {
+    const s = makeStorage();
+    s.saveInstructions('global', 'Always use sidechain compression.');
+    s.saveMemories('global', 'User prefers minimal techno.');
+
+    expect(s.loadInstructions('global')).toBe('Always use sidechain compression.');
+    expect(s.loadMemories('global')).toBe('User prefers minimal techno.');
+  });
+
+  it('round-trips project instructions and memories for the current project', () => {
+    const s = makeStorage();
+    s.saveCurrentProject('My House Set 2026');
+    s.saveInstructions('project', 'Keep vocals dry.');
+    s.saveMemories('project', 'Kick is on track 1.');
+
+    expect(s.loadInstructions('project')).toBe('Keep vocals dry.');
+    expect(s.loadMemories('project')).toBe('Kick is on track 1.');
+  });
+
+  it('uses slug "default" for project scope when no project is set', () => {
+    const s = makeStorage();
+    s.saveInstructions('project', 'Default project instructions');
+    s.saveMemories('project', 'Default project memories');
+
+    expect(s.loadInstructions('project')).toBe('Default project instructions');
+    expect(s.loadMemories('project')).toBe('Default project memories');
+  });
+
+  it('loadPromptContext returns all four context fields', () => {
+    const s = makeStorage();
+    s.saveInstructions('global', 'Global rules');
+    s.saveMemories('global', 'Global memories');
+    s.saveCurrentProject('Live Set');
+    s.saveInstructions('project', 'Project rules');
+    s.saveMemories('project', 'Project memories');
+
+    expect(s.loadPromptContext()).toEqual({
+      globalInstructions: 'Global rules',
+      globalMemories: 'Global memories',
+      projectInstructions: 'Project rules',
+      projectMemories: 'Project memories',
+    });
+  });
+});
+
+describe('Storage — project snapshot', () => {
+  it('returns null when no snapshot exists', () => {
+    const s = makeStorage();
+    expect(s.loadProjectSnapshot('my-set')).toBeNull();
+  });
+
+  it('round-trips saveProjectSnapshot / loadProjectSnapshot', () => {
+    const s = makeStorage();
+    const snapshot = {
+      trackCount: 8,
+      trackNames: ['Kick', 'Snare', 'Hat'],
+      tempo: 124,
+    };
+    s.saveProjectSnapshot('my-set', snapshot);
+    expect(s.loadProjectSnapshot('my-set')).toEqual(snapshot);
   });
 });
