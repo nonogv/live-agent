@@ -14,28 +14,63 @@ const ICON_BTN =
 
 /** Renders a single chat message with role-appropriate styling. */
 export function MessageBubble({ message, onConfirm, onToggleToolFold }: MessageBubbleProps) {
-  const { role, content, streaming, toolName, toolArgs, toolCallId, folded } = message;
+  const { role, content, streaming, toolName, toolArgs, toolCallId, folded, confirmOutcome } =
+    message;
 
   if (role === 'confirm' && toolCallId) {
+    const isContinuePrompt = toolName === 'Continue task';
+    const roundsCompleted =
+      isContinuePrompt &&
+      typeof toolArgs === 'object' &&
+      toolArgs !== null &&
+      'roundsCompleted' in toolArgs &&
+      typeof toolArgs.roundsCompleted === 'number'
+        ? toolArgs.roundsCompleted
+        : null;
+    const declined = confirmOutcome === 'declined';
+
+    if (declined && isContinuePrompt) {
+      return (
+        <div className="ml-2 font-mono text-[12px] text-text-dim">
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-red-400" title="Stopped">
+              <X size={16} />
+            </span>
+            <span className="font-semibold text-[#7ab0d4]">
+              {roundsCompleted ?? 'Several'} steps completed — continue this task?
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="ml-2 font-mono text-[12px] text-text-dim">
         <div className="whitespace-pre-wrap">
-          <span className="font-semibold text-[#7ab0d4]">⚠ {toolName}</span>
-          <div className="mt-0.5 whitespace-pre-wrap text-text-dim">
-            {JSON.stringify(toolArgs, null, 2)}
-          </div>
+          {isContinuePrompt ? (
+            <span className="font-semibold text-[#7ab0d4]">
+              {roundsCompleted ?? 'Several'} steps completed — continue this task?
+            </span>
+          ) : (
+            <>
+              <span className="font-semibold text-[#7ab0d4]">⚠ {toolName}</span>
+              <div className="mt-0.5 whitespace-pre-wrap text-text-dim">
+                {JSON.stringify(toolArgs, null, 2)}
+              </div>
+            </>
+          )}
           <div className="mt-2 flex gap-1.5">
             <button
               className={`${ICON_BTN} text-[#6abf6a]`}
               onClick={() => onConfirm(toolCallId, true)}
-              title="Confirm"
+              title={isContinuePrompt ? 'Continue' : 'Confirm'}
             >
               <Check size={16} />
             </button>
             <button
               className={`${ICON_BTN} text-red-400`}
               onClick={() => onConfirm(toolCallId, false)}
-              title="Cancel"
+              title={isContinuePrompt ? 'Stop' : 'Cancel'}
             >
               <X size={16} />
             </button>

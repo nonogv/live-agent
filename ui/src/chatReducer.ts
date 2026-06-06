@@ -12,7 +12,7 @@ export type ChatAction =
   | { type: 'TOGGLE_TOOL_FOLD'; id: string }
   | { type: 'TOOL_START'; name: string; args: unknown }
   | { type: 'CONFIRM_REQUEST'; toolCallId: string; toolName: string; args: unknown }
-  | { type: 'CONFIRM_RESPOND'; toolCallId: string }
+  | { type: 'CONFIRM_RESOLVE'; toolCallId: string; confirmed: boolean }
   | { type: 'ERROR'; message: string }
   | { type: 'SET_TOOL_VISIBILITY'; visible: boolean }
   | { type: 'CLEAR' };
@@ -31,6 +31,35 @@ function nextId() {
 /** Resets the message id counter — for tests only. */
 export function resetChatMessageIds(): void {
   msgId = 0;
+}
+
+const CONTINUE_TASK_TOOL_NAME = 'Continue task';
+
+/** Removes a streamed continue-checkpoint suffix from agent text (legacy turns). */
+function stripContinueCheckpointText(content: string): string {
+  return content.replace(
+    /\n\n---\n\*\*\d+ steps completed\.\*\* Continue working on this task\?/,
+    '',
+  );
+}
+
+function stripCheckpointFromLastAgent(messages: ChatMessage[]): ChatMessage[] {
+  let lastAgentIndex = -1;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    if (messages[index]?.role === 'agent') {
+      lastAgentIndex = index;
+      break;
+    }
+  }
+  if (lastAgentIndex < 0) return messages;
+
+  const agent = messages[lastAgentIndex];
+  const stripped = stripContinueCheckpointText(agent.content);
+  if (stripped === agent.content) return messages;
+
+  const next = [...messages];
+  next[lastAgentIndex] = { ...agent, content: stripped };
+  return next;
 }
 
 /**
@@ -104,20 +133,25 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         messages: state.messages.map((m) => (m.id === action.id ? { ...m, folded: !m.folded } : m)),
       };
 
-    case 'TOOL_START':
+    case 'TOOL_START': {
+      // Freeze the streaming cursor on the preceding agent bubble — the tool row
+      // is now the active item. STREAM_CHUNK opens a new agent bubble when text
+      // resumes after the tool call completes.
+      const frozenMsgs = state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m));
       return {
         ...state,
         messages: [
-          ...state.messages,
+          ...frozenMsgs,
           {
             id: nextId(),
-            role: 'tool',
+            role: 'tool' as const,
             content: '',
             toolName: action.name,
             toolArgs: action.args,
           },
         ],
       };
+    }
 
     case 'CONFIRM_REQUEST':
       return {
@@ -135,11 +169,31 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ],
       };
 
-    case 'CONFIRM_RESPOND':
+    case 'CONFIRM_RESOLVE': {
+      const target = state.messages.find((m) => m.toolCallId === action.toolCallId);
+      if (action.confirmed) {
+        const withoutPrompt = state.messages.filter((m) => m.toolCallId !== action.toolCallId);
+        const messages =
+          target?.toolName === CONTINUE_TASK_TOOL_NAME
+            ? stripCheckpointFromLastAgent(withoutPrompt)
+            : withoutPrompt;
+        return { ...state, messages };
+      }
+
+      if (target?.toolName === CONTINUE_TASK_TOOL_NAME) {
+        return {
+          ...state,
+          messages: state.messages.map((m) =>
+            m.toolCallId === action.toolCallId ? { ...m, confirmOutcome: 'declined' } : m,
+          ),
+        };
+      }
+
       return {
         ...state,
         messages: state.messages.filter((m) => m.toolCallId !== action.toolCallId),
       };
+    }
 
     case 'ERROR': {
       const msgs = state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m));

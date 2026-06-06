@@ -5,7 +5,7 @@ import type { ConfirmMode, ProvidersRegistry } from '../../types';
 const CONFIRM_MODES: { value: ConfirmMode; label: string; title: string }[] = [
   { value: 'review', label: 'Review', title: 'Ask before every tool call' },
   { value: 'guard', label: 'Guard', title: 'Ask only before destructive operations (default)' },
-  { value: 'off', label: 'Auto', title: 'Run all tools without asking' },
+  { value: 'off', label: 'Auto', title: 'Run all tools and multi-step batches without asking' },
 ];
 
 const ICON_BTN =

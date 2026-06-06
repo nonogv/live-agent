@@ -21,6 +21,8 @@ export interface ChatMessage {
   toolArgs?: unknown;
   /** Tool call ID, set for role === 'confirm'. */
   toolCallId?: string;
+  /** Set when the user resolves a confirm prompt (continue checkpoint decline only). */
+  confirmOutcome?: 'declined';
   /** Whether this message is still being streamed. */
   streaming?: boolean;
   /** Whether a tool message is collapsed to a one-liner. */

@@ -167,7 +167,7 @@ export function App() {
   }
 
   function handleConfirm(toolCallId: string, confirmed: boolean) {
-    dispatch({ type: 'CONFIRM_RESPOND', toolCallId });
+    dispatch({ type: 'CONFIRM_RESOLVE', toolCallId, confirmed });
     sendMsg({ type: 'confirm_response', confirmed, toolCallId });
   }
 

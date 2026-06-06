@@ -91,6 +91,74 @@ describe('chatReducer', () => {
     });
   });
 
+  it('CONFIRM_RESOLVE removes continue prompt on accept', () => {
+    const state = {
+      messages: [
+        {
+          id: 'agent-1',
+          role: 'agent' as const,
+          content: 'Working…\n\n---\n**5 steps completed.** Continue working on this task?',
+        },
+        {
+          id: 'confirm-1',
+          role: 'confirm' as const,
+          content: '',
+          toolName: 'Continue task',
+          toolArgs: { roundsCompleted: 5 },
+          toolCallId: 'continue-1',
+        },
+      ],
+      streaming: true,
+    };
+
+    const next = chatReducer(state, {
+      type: 'CONFIRM_RESOLVE',
+      toolCallId: 'continue-1',
+      confirmed: true,
+    });
+
+    expect(next.messages).toHaveLength(1);
+    expect(next.messages[0]?.content).toBe('Working…');
+  });
+
+  it('CONFIRM_RESOLVE keeps continue prompt with declined icon on reject', () => {
+    const state = {
+      messages: [
+        {
+          id: 'confirm-1',
+          role: 'confirm' as const,
+          content: '',
+          toolName: 'Continue task',
+          toolArgs: { roundsCompleted: 5 },
+          toolCallId: 'continue-1',
+        },
+      ],
+      streaming: true,
+    };
+
+    const next = chatReducer(state, {
+      type: 'CONFIRM_RESOLVE',
+      toolCallId: 'continue-1',
+      confirmed: false,
+    });
+
+    expect(next.messages).toHaveLength(1);
+    expect(next.messages[0]?.confirmOutcome).toBe('declined');
+  });
+
+  it('TOOL_START freezes the streaming cursor on the preceding agent bubble', () => {
+    const state = {
+      messages: [{ id: '1', role: 'agent' as const, content: 'thinking…', streaming: true }],
+      streaming: true,
+    };
+
+    const next = chatReducer(state, { type: 'TOOL_START', name: 'get_live_state', args: {} });
+
+    expect(next.messages[0]?.streaming).toBe(false);
+    expect(next.messages[1]?.role).toBe('tool');
+    expect(next.messages[1]?.toolName).toBe('get_live_state');
+  });
+
   it('STREAM_END clears streaming flag without folding tools', () => {
     const state = {
       messages: [
