@@ -239,13 +239,15 @@ export class Storage {
   }
 
   /**
-   * Persists the active project name and derived slug.
+   * Persists the active project name and slug.
+   * When `slug` is omitted it is derived from `name` via {@link projectNameToSlug}.
+   * Pass an explicit `slug` (e.g. a fingerprint) to bypass name-based derivation.
    * @returns The saved project metadata.
    */
-  saveCurrentProject(name: string): ProjectInfo {
+  saveCurrentProject(name: string, slug?: string): ProjectInfo {
     const project: ProjectInfo = {
       name,
-      slug: projectNameToSlug(name),
+      slug: slug ?? projectNameToSlug(name),
     };
     try {
       fs.mkdirSync(path.dirname(this.currentProjectFilePath()), { recursive: true });
@@ -379,6 +381,31 @@ export class Storage {
       fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2), 'utf-8');
     } catch (err) {
       console.error('[Live Agent] Failed to save project snapshot:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Returns the Live session handle ID stored alongside a project's history.
+   * Used to detect whether the same fingerprint was loaded in a new Live session.
+   * Returns null when no handle has been stored yet.
+   */
+  loadProjectSessionHandle(slug: string): string | null {
+    try {
+      return fs.readFileSync(path.join(this.projectDir(slug), 'session-handle.txt'), 'utf-8');
+    } catch {
+      return null;
+    }
+  }
+
+  /** Persists the main-track handle ID for the given project slug. */
+  saveProjectSessionHandle(slug: string, handleId: string): void {
+    try {
+      const dir = this.projectDir(slug);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'session-handle.txt'), handleId, 'utf-8');
+    } catch (err) {
+      console.error('[Live Agent] Failed to save project session handle:', err);
       throw err;
     }
   }

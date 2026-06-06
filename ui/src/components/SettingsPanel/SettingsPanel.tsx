@@ -12,8 +12,6 @@ interface SettingsPanelProps {
   onClearKey: (provider: string) => void;
   onOpenUrl: (url: string) => void;
   onClose: () => void;
-  onSetProject: (name: string) => void;
-  onClearProject: () => void;
   onSaveInstructions: (scope: 'global' | 'project', content: string) => void;
   onSaveMemories: (scope: 'global' | 'project', content: string) => void;
 }
@@ -39,21 +37,14 @@ export function SettingsPanel({
   onClearKey,
   onOpenUrl,
   onClose,
-  onSetProject,
-  onClearProject,
   onSaveInstructions,
   onSaveMemories,
 }: SettingsPanelProps) {
   const [feedback, setFeedback] = useState('');
-  const [projectName, setProjectName] = useState(project.name ?? '');
   const [globalInstructions, setGlobalInstructions] = useState(context.globalInstructions);
   const [projectInstructions, setProjectInstructions] = useState(context.projectInstructions);
   const [globalMemories, setGlobalMemories] = useState(context.globalMemories);
   const [projectMemories, setProjectMemories] = useState(context.projectMemories);
-
-  useEffect(() => {
-    setProjectName(project.name ?? '');
-  }, [project.name]);
 
   useEffect(() => {
     setGlobalInstructions(context.globalInstructions);
@@ -81,15 +72,6 @@ export function SettingsPanel({
     }
     onSave({ keys });
     showFeedback('Saved ✓');
-  }
-
-  function handleSetProject() {
-    const trimmed = projectName.trim();
-    if (!trimmed) {
-      return;
-    }
-    onSetProject(trimmed);
-    showFeedback('Project updated ✓');
   }
 
   function handleSaveInstructions(scope: 'global' | 'project') {
@@ -167,44 +149,19 @@ export function SettingsPanel({
         ))}
       </div>
 
-      <div className="mb-6">
-        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">
-          Project
-        </h3>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="min-w-0 flex-1 rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
-            value={projectName}
-            onChange={(event) => setProjectName(event.target.value)}
-            placeholder="My Live Set"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                handleSetProject();
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="shrink-0 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-2 text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
-            onClick={handleSetProject}
-          >
-            Switch / Create
-          </button>
+      {projectActive && (
+        <div className="mb-6">
+          <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-text-dim">
+            Project
+          </h3>
+          <p className="text-[13px] text-text-dim">
+            Auto-detected: <span className="font-medium text-text">{project.name}</span>
+          </p>
+          <p className="mt-1 text-[11px] text-text-dim opacity-60">
+            Detected from your track and scene structure. Changes when you load a different set.
+          </p>
         </div>
-        {projectActive && (
-          <div className="mt-2 flex items-center gap-3">
-            <span className="text-[13px] text-text-dim">slug: {project.slug}</span>
-            <button
-              type="button"
-              className="cursor-pointer rounded-default border border-border px-2 py-1 text-[12px] text-text-dim transition-colors hover:border-[#e05555] hover:text-[#e05555]"
-              onClick={onClearProject}
-            >
-              Clear
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       <div className="mb-6">
         <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-text-dim">

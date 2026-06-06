@@ -47,7 +47,6 @@ export function App() {
       switch (msg.type) {
         case 'ready':
           sendMsg({ type: 'get_settings' });
-          sendMsg({ type: 'get_project' });
           sendMsg({ type: 'get_context' });
           break;
         case 'stream_start':
@@ -173,14 +172,6 @@ export function App() {
     sendMsg({ type: 'open_url', url });
   }
 
-  function handleSetProject(name: string) {
-    sendMsg({ type: 'set_project', name });
-  }
-
-  function handleClearProject() {
-    sendMsg({ type: 'clear_project' });
-  }
-
   function handleSaveInstructions(scope: 'global' | 'project', content: string) {
     sendMsg({ type: 'save_instructions', scope, content });
   }
@@ -245,8 +236,6 @@ export function App() {
                 onClearKey={handleClearKey}
                 onOpenUrl={handleOpenUrl}
                 onClose={handleCloseSettings}
-                onSetProject={handleSetProject}
-                onClearProject={handleClearProject}
                 onSaveInstructions={handleSaveInstructions}
                 onSaveMemories={handleSaveMemories}
               />

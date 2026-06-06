@@ -110,9 +110,6 @@ export type ClientMessage =
   | { type: 'debug'; provider: string; model: string }
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
-  | { type: 'get_project' }
-  | { type: 'set_project'; name: string }
-  | { type: 'clear_project' }
   | { type: 'get_context' }
   | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
   | { type: 'save_memories'; scope: 'global' | 'project'; content: string }

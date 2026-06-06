@@ -1,6 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -43,7 +44,10 @@ export async function startServer(
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
 ): Promise<LiveAgentServer> {
-  const historyRef: { arr: ProviderMessage[] } = { arr: storage.loadHistory() };
+  // History is initialised empty; handleConnection populates it once the
+  // Live-state fingerprint is known. This avoids loading the wrong project's
+  // history at startup before we have a chance to detect the current set.
+  const historyRef: { arr: ProviderMessage[] } = { arr: [] };
   let confirmMode: ConfirmMode = 'guard';
 
   const uiDir = path.join(__dirname, 'ui');
@@ -86,11 +90,10 @@ export async function startServer(
 
     ws.send(JSON.stringify({ type: 'ready' }));
 
-    dbg(`[Live Agent] sending history on connect, len=${historyRef.arr.length}`);
-    sendVisibleHistory(ws, historyRef.arr);
-
-    void sendConnectionContext(ws, getSong, storage).catch((err) => {
-      console.error('[Live Agent] Failed to send connection context:', err);
+    // Project auto-detection runs first; history is sent inside handleConnection
+    // after the fingerprint resolves so the UI always receives the correct set.
+    void handleConnection(ws, getSong, storage, historyRef).catch((err) => {
+      console.error('[Live Agent] Failed to initialise connection:', err);
       ws.send(JSON.stringify({ type: 'error', message: String(err) }));
     });
 
@@ -135,9 +138,6 @@ type WebViewMessage =
   | { type: 'debug'; provider: string; model: string }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
-  | { type: 'get_project' }
-  | { type: 'set_project'; name: string }
-  | { type: 'clear_project' }
   | { type: 'get_context' }
   | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
   | { type: 'save_memories'; scope: 'global' | 'project'; content: string }
@@ -190,29 +190,72 @@ function buildStaleSummary(snapshot: ProjectSnapshot, liveState: LiveState): str
   return parts.length > 0 ? `${parts.join('. ')}.` : null;
 }
 
-/** Sends project, stale-warning, and context frames after a WebSocket connection. */
-async function sendConnectionContext(
+/**
+ * Derives a stable 16-character hex fingerprint from the Live session's structure.
+ * Track and scene names are sorted before hashing so rename order doesn't matter.
+ * The fingerprint is the same across Live restarts when the set is unchanged,
+ * but differs between sets with different tracks or scenes.
+ */
+function computeProjectFingerprint(liveState: LiveState): string {
+  const parts = [
+    String(liveState.trackCount),
+    ...liveState.tracks.map((t) => t.name).sort(),
+    ...liveState.scenes.map((s) => s.name).sort(),
+  ];
+  return createHash('sha256').update(parts.join('\x00')).digest('hex').slice(0, 16);
+}
+
+/**
+ * Auto-detects the current project by fingerprinting the Live session state,
+ * then loads the matching history into historyRef and sends all connection frames.
+ *
+ * Two-layer identification:
+ *  1. Fingerprint (track + scene names): stable across restarts of the same set.
+ *  2. Main-track handle ID: changes every time any set is loaded, even the same one.
+ *
+ * We only restore persisted history when BOTH match the stored values — i.e. same
+ * set structure AND same Live session.  If the handle differs (new set load), we
+ * start fresh so unrelated blank sets don't share history.
+ */
+async function handleConnection(
   ws: WebSocket,
   getSong: () => Song<'1.0.0'>,
   storage: Storage,
+  historyRef: { arr: ProviderMessage[] },
 ): Promise<void> {
-  const project = storage.loadCurrentProject();
-  const slug = project?.slug ?? 'default';
-  ws.send(
-    JSON.stringify({
-      type: 'project',
-      name: project?.name ?? null,
-      slug: project?.slug ?? null,
-    }),
-  );
+  const song = getSong();
+  const liveState = await getLiveState(song);
+  const fingerprint = computeProjectFingerprint(liveState);
+  const sessionHandle = song.mainTrack.handle.id.toString();
 
-  const liveState = await getLiveState(getSong());
-  const snapshot = storage.loadProjectSnapshot(slug);
+  const storedHandle = storage.loadProjectSessionHandle(fingerprint);
+  const sameSession = storedHandle === sessionHandle;
+
+  if (sameSession) {
+    // Same set, same Live session — restore persisted history so dialog
+    // close/reopen within a session doesn't lose the conversation.
+    historyRef.arr = storage.loadHistory(fingerprint);
+  } else {
+    // New set load (or first ever): start with a clean slate and persist
+    // the handle so subsequent reconnects within this session reuse history.
+    historyRef.arr = [];
+    storage.saveProjectSessionHandle(fingerprint, sessionHandle);
+  }
+
+  // Auto-persist project identity so saveHistory() uses the right path.
+  const autoName = liveState.tracks
+    .slice(0, 3)
+    .map((t) => t.name)
+    .join(', ');
+  storage.saveCurrentProject(autoName, fingerprint);
+
+  ws.send(JSON.stringify({ type: 'project', name: autoName, slug: fingerprint }));
+  sendVisibleHistory(ws, historyRef.arr);
+
+  const snapshot = storage.loadProjectSnapshot(fingerprint);
   if (snapshot) {
     const summary = buildStaleSummary(snapshot, liveState);
-    if (summary) {
-      ws.send(JSON.stringify({ type: 'project_stale', summary }));
-    }
+    if (summary) ws.send(JSON.stringify({ type: 'project_stale', summary }));
   }
 
   ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
@@ -253,40 +296,6 @@ async function handleMessage(
       historyRef.arr.length = 0;
       storage.clearHistory();
       ws.send(JSON.stringify({ type: 'history_cleared' }));
-      break;
-
-    case 'get_project': {
-      const project = storage.loadCurrentProject();
-      ws.send(
-        JSON.stringify({
-          type: 'project',
-          name: project?.name ?? null,
-          slug: project?.slug ?? null,
-        }),
-      );
-      break;
-    }
-
-    case 'set_project': {
-      dbg(`[Live Agent] set_project name="${msg.name}"`);
-      const project = storage.saveCurrentProject(msg.name);
-      dbg(
-        `[Live Agent] set_project saved slug="${project.slug}" historyLen=${historyRef.arr.length}`,
-      );
-      historyRef.arr = storage.loadHistory(project.slug);
-      dbg(`[Live Agent] set_project loaded history len=${historyRef.arr.length}`);
-      ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
-      sendVisibleHistory(ws, historyRef.arr);
-      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
-      break;
-    }
-
-    case 'clear_project':
-      storage.clearCurrentProject();
-      historyRef.arr = storage.loadHistory('default');
-      ws.send(JSON.stringify({ type: 'project', name: null, slug: null }));
-      sendVisibleHistory(ws, historyRef.arr);
-      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
       break;
 
     case 'get_context':
