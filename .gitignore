@@ -11,3 +11,4 @@ dist/ui/
 settings.json
 debug-probe.txt
 history.json
+sessions/
