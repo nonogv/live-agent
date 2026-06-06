@@ -23,6 +23,7 @@ export function App() {
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>('guard');
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
   const [project, setProject] = useState<ProjectState>({ name: null, slug: null });
+  const [namedProjects, setNamedProjects] = useState<Array<{ name: string; slug: string }>>([]);
   const [context, setContext] = useState<ContextState>({
     globalInstructions: '',
     projectInstructions: '',
@@ -48,6 +49,7 @@ export function App() {
         case 'ready':
           sendMsg({ type: 'get_settings' });
           sendMsg({ type: 'get_context' });
+          sendMsg({ type: 'get_projects' });
           break;
         case 'stream_start':
           if (expectDiagnosticStreamRef.current) {
@@ -112,6 +114,9 @@ export function App() {
         case 'project_stale':
           setProjectStale(msg.summary);
           break;
+        case 'projects':
+          setNamedProjects(msg.projects);
+          break;
       }
     },
     [debugMode, initFromLastChoice],
@@ -174,6 +179,11 @@ export function App() {
 
   function handleSetProject(name: string) {
     sendMsg({ type: 'set_project', name });
+    sendMsg({ type: 'get_projects' });
+  }
+
+  function handleLoadProject(slug: string) {
+    sendMsg({ type: 'load_project', slug });
   }
 
   function handleSaveInstructions(scope: 'global' | 'project', content: string) {
@@ -240,7 +250,9 @@ export function App() {
                 onClearKey={handleClearKey}
                 onOpenUrl={handleOpenUrl}
                 onClose={handleCloseSettings}
+                namedProjects={namedProjects}
                 onSetProject={handleSetProject}
+                onLoadProject={handleLoadProject}
                 onSaveInstructions={handleSaveInstructions}
                 onSaveMemories={handleSaveMemories}
               />

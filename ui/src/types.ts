@@ -94,7 +94,8 @@ export type ServerMessage =
       projectMemories: string;
     }
   | { type: 'context_saved' }
-  | { type: 'project_stale'; summary: string };
+  | { type: 'project_stale'; summary: string }
+  | { type: 'projects'; projects: Array<{ name: string; slug: string }> };
 
 // ── WebSocket message types (client → server) ──────────────────────────────
 
@@ -111,6 +112,8 @@ export type ClientMessage =
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
   | { type: 'set_project'; name: string }
+  | { type: 'load_project'; slug: string }
+  | { type: 'get_projects' }
   | { type: 'get_context' }
   | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
   | { type: 'save_memories'; scope: 'global' | 'project'; content: string }

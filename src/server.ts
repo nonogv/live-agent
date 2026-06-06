@@ -137,6 +137,8 @@ type WebViewMessage =
   | { type: 'confirm_response'; confirmed: boolean; toolCallId: string }
   | { type: 'set_confirm_mode'; mode: ConfirmMode }
   | { type: 'set_project'; name: string }
+  | { type: 'load_project'; slug: string }
+  | { type: 'get_projects' }
   | { type: 'get_context' }
   | { type: 'save_instructions'; scope: 'global' | 'project'; content: string }
   | { type: 'save_memories'; scope: 'global' | 'project'; content: string }
@@ -161,16 +163,12 @@ function sendVisibleHistory(ws: WebSocket, history: ProviderMessage[]): void {
 /**
  * Sends the initial project, history, stale-warning, and context frames.
  *
- * Two modes:
+ * Always starts fresh with a session-scoped slug so switching sets within the
+ * same Live instance never carries over history from a previous set.  The SDK
+ * provides no stable set identifier, so we cannot auto-detect which set is open.
  *
- * - **Named project** (`current-project.json` has a non-empty name the user set):
- *   history is keyed by that slug and survives Live restarts indefinitely.
- *
- * - **Unnamed project** (no user-assigned name or no file at all):
- *   history is keyed by `session-<sessionId>`, which rotates every time the
- *   extension starts.  This means the panel starts fresh each session for
- *   unnamed sets, preventing blank or unrelated sets from sharing history.
- *   The user can name the set at any time to promote it to cross-session storage.
+ * The user can name the current session via `set_project` (saves for later) or
+ * resume a previously-named project via `load_project` (loads its history now).
  */
 async function handleConnection(
   ws: WebSocket,
@@ -178,24 +176,11 @@ async function handleConnection(
   historyRef: { arr: ProviderMessage[] },
   sessionId: string,
 ): Promise<void> {
-  const stored = storage.loadCurrentProject();
-  const isUserNamed = Boolean(stored?.name?.trim());
+  const slug = `session-${sessionId}`;
+  storage.saveCurrentProject('', slug);
+  historyRef.arr = [];
 
-  let slug: string;
-  let displayName: string | null;
-
-  if (isUserNamed && stored) {
-    slug = stored.slug;
-    displayName = stored.name;
-    historyRef.arr = storage.loadHistory(slug);
-  } else {
-    slug = `session-${sessionId}`;
-    displayName = null;
-    storage.saveCurrentProject('', slug);
-    historyRef.arr = [];
-  }
-
-  ws.send(JSON.stringify({ type: 'project', name: displayName, slug }));
+  ws.send(JSON.stringify({ type: 'project', name: null, slug }));
   sendVisibleHistory(ws, historyRef.arr);
   ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
 }
@@ -239,10 +224,30 @@ async function handleMessage(
 
     case 'set_project': {
       const project = storage.saveCurrentProject(msg.name);
-      // Transfer the current in-memory history to the named slug immediately
-      // so the conversation so far is not lost when naming mid-session.
+      // Save current in-memory conversation under the new named slug so nothing
+      // is lost when the user names the session mid-conversation.
       storage.saveHistory(historyRef.arr, project.slug);
       ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
+      break;
+    }
+
+    case 'load_project': {
+      const project = storage.loadProjectBySlug(msg.slug);
+      if (!project) {
+        ws.send(JSON.stringify({ type: 'error', message: `Project "${msg.slug}" not found.` }));
+        break;
+      }
+      storage.saveCurrentProject(project.name, project.slug);
+      historyRef.arr = storage.loadHistory(project.slug);
+      ws.send(JSON.stringify({ type: 'project', name: project.name, slug: project.slug }));
+      sendVisibleHistory(ws, historyRef.arr);
+      ws.send(JSON.stringify({ type: 'context', ...storage.loadPromptContext() }));
+      break;
+    }
+
+    case 'get_projects': {
+      const projects = storage.listNamedProjects();
+      ws.send(JSON.stringify({ type: 'projects', projects }));
       break;
     }
 

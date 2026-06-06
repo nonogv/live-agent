@@ -7,12 +7,14 @@ interface SettingsPanelProps {
   providers: ProvidersRegistry;
   settings: SettingsPayload | null;
   project: ProjectState;
+  namedProjects: Array<{ name: string; slug: string }>;
   context: ContextState;
   onSave: (payload: { keys: Record<string, string> }) => void;
   onClearKey: (provider: string) => void;
   onOpenUrl: (url: string) => void;
   onClose: () => void;
   onSetProject: (name: string) => void;
+  onLoadProject: (slug: string) => void;
   onSaveInstructions: (scope: 'global' | 'project', content: string) => void;
   onSaveMemories: (scope: 'global' | 'project', content: string) => void;
 }
@@ -33,12 +35,14 @@ export function SettingsPanel({
   providers,
   settings,
   project,
+  namedProjects,
   context,
   onSave,
   onClearKey,
   onOpenUrl,
   onClose,
   onSetProject,
+  onLoadProject,
   onSaveInstructions,
   onSaveMemories,
 }: SettingsPanelProps) {
@@ -166,11 +170,11 @@ export function SettingsPanel({
         {projectNamed ? (
           <p className="mb-2 text-[13px] text-text-dim">
             <span className="font-medium text-text">{project.name}</span>
-            {' — '}history persists across sessions
+            {' — '}history active
           </p>
         ) : (
           <p className="mb-2 text-[13px] text-text-dim">
-            Unnamed session — history resets on every reload. Name this set to persist it.
+            Fresh session — name this set to save its history, or resume a previous one.
           </p>
         )}
         <div className="flex gap-2">
@@ -179,7 +183,7 @@ export function SettingsPanel({
             className="min-w-0 flex-1 rounded-default border border-border bg-surface2 px-2.5 py-2 text-[13px] text-text outline-none focus:outline focus:outline-1 focus:outline-accent"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            placeholder={project.name ?? 'My House Set'}
+            placeholder="My House Set"
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSetProject();
             }}
@@ -189,9 +193,27 @@ export function SettingsPanel({
             className="shrink-0 cursor-pointer rounded-default border border-border bg-surface2 px-3 py-2 text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
             onClick={handleSetProject}
           >
-            {projectNamed ? 'Rename' : 'Name'}
+            {projectNamed ? 'Rename' : 'Save'}
           </button>
         </div>
+        {namedProjects.length > 0 && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-[12px] text-text-dim">Resume a previous project:</p>
+            <div className="flex flex-col gap-1">
+              {namedProjects.map((p) => (
+                <button
+                  key={p.slug}
+                  type="button"
+                  className="flex cursor-pointer items-center justify-between rounded-default border border-border bg-surface2 px-2.5 py-1.5 text-left text-[13px] text-text transition-colors hover:border-accent hover:text-accent"
+                  onClick={() => onLoadProject(p.slug)}
+                >
+                  <span>{p.name}</span>
+                  <span className="text-[11px] text-text-dim opacity-60">Resume →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mb-6">

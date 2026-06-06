@@ -226,6 +226,41 @@ export class Storage {
   }
 
   /**
+   * Returns all named projects (those whose slug does not start with "session-")
+   * sorted alphabetically by name.  Used to populate the "resume project" list.
+   */
+  listNamedProjects(): ProjectInfo[] {
+    const projectsDir = path.join(this.storageDirectory, 'projects');
+    try {
+      const slugs = fs
+        .readdirSync(projectsDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && !entry.name.startsWith('session-'))
+        .map((entry) => entry.name);
+
+      return slugs
+        .map((slug) => this.loadProjectBySlug(slug))
+        .filter((p): p is ProjectInfo => p !== null)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Loads project metadata from its slug directory.
+   * Returns null when the directory or metadata file is missing.
+   */
+  loadProjectBySlug(slug: string): ProjectInfo | null {
+    try {
+      const metaPath = path.join(this.projectDir(slug), 'project.json');
+      const raw = fs.readFileSync(metaPath, 'utf-8');
+      return JSON.parse(raw) as ProjectInfo;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Loads the currently active project, if one has been saved.
    * Returns null when no project is set.
    */
@@ -250,8 +285,18 @@ export class Storage {
       slug: slug ?? projectNameToSlug(name),
     };
     try {
+      // Write global current-project pointer.
       fs.mkdirSync(path.dirname(this.currentProjectFilePath()), { recursive: true });
       fs.writeFileSync(this.currentProjectFilePath(), JSON.stringify(project, null, 2), 'utf-8');
+
+      // Write per-project metadata so loadProjectBySlug() can read it later.
+      const projectDir = this.projectDir(project.slug);
+      fs.mkdirSync(projectDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectDir, 'project.json'),
+        JSON.stringify(project, null, 2),
+        'utf-8',
+      );
     } catch (err) {
       console.error('[Live Agent] Failed to save current project:', err);
       throw err;
