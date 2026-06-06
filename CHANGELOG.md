@@ -9,6 +9,23 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Fixed
+- **Auto mode** — skips multi-step continue checkpoints (Review/Guard still pause every 5 steps)
+- **Continue checkpoint UI** — accept removes the prompt entirely; decline keeps the message with a stop icon (no duplicate streamed text)
+- **`web_search`** — DuckDuckGo Lite for tab-site links (Ultimate Guitar, Songsterr, BigBassTabs, etc.) + ASCII tab excerpts from fetchable pages; Wikipedia kept for song overview
+
+### Added
+- **`web_search` tool** — Wikipedia + DuckDuckGo lookup for tempo, bass lines, and other musical reference (no API key)
+- **Production & Live learning via `web_search`** — Ableton.com article excerpts, `site:ableton.com` query variants for built-in devices, and system-prompt guidance for mixing/sound-design/Live workflow questions (Wikipedia skipped for production queries)
+- **`resources_import_into_project` tool** — copies an audio file from disk into the Live project (SDK `Resources.importIntoProject`)
+
+### Changed
+- **Tool error recovery** — SDK tool failures return `{ ok: false, error }` to the LLM instead of aborting the agent loop, so the agent can refresh state and retry (e.g. stale track ids after a partial delete)
+- **Live snapshot on layout changes** — track create/delete results (and stale-id failures) include a compact `liveSnapshot` with current track ids so the model does not reuse ids from the opening system prompt
+- **Agent continue checkpoints** — pauses every 5 steps (counted across follow-up messages in the same Live session) with Continue/Stop buttons; hard cap 50 steps per user message
+- **Clearer clip/device tool descriptions** — session vs arrangement clip tools documented; Drum Rack/Sampler emptiness vs synth defaults
+- **Completion verification** — system prompt requires `get_live_state` check before claiming success; arrangement clips listed in state overview
+
 ---
 
 ## [0.2.1-alpha.1] — 2026-06-05

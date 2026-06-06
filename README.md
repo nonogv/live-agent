@@ -15,7 +15,9 @@ Live Agent opens a chat panel inside Live via the [Ableton Extensions SDK](https
 
 **Full SDK coverage.** Tool schemas are auto-generated directly from the SDK type definitions — all 15 SDK classes, every method and setter, kept in sync automatically when the SDK updates. No hand-written tool definitions.
 
-**Multi-step reasoning.** The agent chains multiple tool calls when needed. "Duplicate the drum rack on track 3 to a new track and set its volume to -6dB" runs as a sequence, not a single command.
+**Multi-step reasoning.** The agent chains multiple tool calls when needed. "Duplicate the drum rack on track 3 to a new track and set its volume to -6dB" runs as a sequence, not a single command. When a tool fails (stale id, Live constraint), the agent gets the error and keeps going instead of stopping the turn. After track layout changes, tool results include a fresh `liveSnapshot` so ids from the opening prompt are not reused. Long tasks pause every 5 steps with **Continue / Stop** (counted across follow-up messages in the same Live session).
+
+**Web lookup & learning.** `web_search` looks up song tabs and reference, production techniques, mixing tips, and Ableton Live / built-in device guidance — DuckDuckGo links, ASCII tab excerpts, Ableton.com articles when fetchable, and Wikipedia for song overview.
 
 **Three confirmation modes** to match how much you trust the agent:
 - **Review** — approve every action before it runs
@@ -140,7 +142,21 @@ ui/src/                     # React + Vite webview
 
 ## Roadmap
 
-See [`ROADMAP.md`](./ROADMAP.md) for milestones and [`CHANGELOG.md`](./CHANGELOG.md) for what has shipped.
+Full issue tracking is on [GitHub](https://github.com/nonogv/live-agent/issues) (`v1` / `v2` / `v3` labels). High-level milestones:
+
+**v1 — Developer release** *(in progress)*  
+Polished, stable experience for developer-musicians who build from source and bring their own API key. Manual QA across all three providers is the remaining gate.
+
+**v2 — Power features**  
+Consumer packaged installer · producer rules (persistent agent instructions) · `@track` / `@clip` / `@device` context targeting · local model support (Ollama) · RAG over the Ableton Live manual (scraped, BM25-indexed, auto-refreshed by CI) · SDK auto-sync on new Ableton releases.
+
+**v3 — Platform**  
+Cloud conversation sync · collaborative sessions for remote co-production.
+
+**Ideas (not yet scheduled)**  
+Max for Live patch generation, M4L bridge, cloud plugin parameter database, voice-first / hum-to-MIDI mobile interface.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for what has already shipped.
 
 ---
 
