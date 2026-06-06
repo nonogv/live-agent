@@ -8,7 +8,10 @@ import {
   type Song,
 } from '@ableton-extensions/sdk';
 import type { LiveState, DeviceInfo, ClipInfo } from '../agent/chat.js';
+import { webSearch } from '../agent/web-search.js';
+import type { AgentContext } from './agent-context.js';
 import { reg, clearRegistry } from './handle-registry.js';
+import { toJsonSafe } from '../json.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -195,15 +198,39 @@ export async function getLiveState(song: Song<'1.0.0'>): Promise<LiveState> {
  * The generated executor handles everything else (see generated-executor.ts).
  */
 export async function handleToolCall(
-  song: Song<'1.0.0'>,
+  ctx: AgentContext,
   name: string,
-  _args: Record<string, unknown>,
+  args: Record<string, unknown>,
 ): Promise<unknown> {
+  const song = ctx.getSong();
+
   switch (name) {
     case 'get_live_state':
-      return await getLiveState(song);
+      return toJsonSafe(await getLiveState(song));
+
+    case 'web_search': {
+      const query = args['query'];
+      if (typeof query !== 'string') {
+        throw new Error('web_search requires a string "query" argument.');
+      }
+      return await webSearch(query);
+    }
+
+    case 'resources_import_into_project': {
+      if (!ctx.resources) {
+        throw new Error('resources_import_into_project is unavailable in this context.');
+      }
+      const filePath = args['file_path'];
+      if (typeof filePath !== 'string' || !filePath.trim()) {
+        throw new Error('resources_import_into_project requires a non-empty "file_path".');
+      }
+      const importedPath = await ctx.resources.importIntoProject(filePath);
+      return { ok: true, importedPath };
+    }
 
     default:
-      throw new Error(`Unknown tool: "${name}". Available custom tools: get_live_state.`);
+      throw new Error(
+        `Unknown tool: "${name}". Available custom tools: get_live_state, web_search, resources_import_into_project.`,
+      );
   }
 }
