@@ -4,7 +4,7 @@ An AI assistant built into Ableton Live. Describe what you want in plain English
 
 > *"Create a bass track with a Moog preset and a 16-step bassline in D minor"* → Done.
 
-[![Live Agent demo](https://img.youtube.com/vi/AFiYc4WvxQU/maxresdefault.jpg)](https://youtu.be/AFiYc4WvxQU)
+[![Live Agent demo](https://img.youtube.com/vi/AFiYc4WvxQU/hqdefault.jpg)](https://youtu.be/AFiYc4WvxQU)
 
 ---
 
