@@ -6,6 +6,8 @@ An AI assistant built into Ableton Live. Describe what you want in plain English
 
 [![Live Agent demo](https://img.youtube.com/vi/AFiYc4WvxQU/hqdefault.jpg)](https://youtu.be/AFiYc4WvxQU)
 
+[![▶ Watch on YouTube](https://img.shields.io/badge/▶%20Watch%20on%20YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/AFiYc4WvxQU)
+
 ---
 
 ## What it does
