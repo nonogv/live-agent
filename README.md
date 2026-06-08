@@ -2,7 +2,7 @@
 
 An AI assistant built into Ableton Live. Describe what you want in plain English — Live Agent executes it directly on your session.
 
-> *"Create a bass track with a Moog preset and a 16-step bassline in D minor"* → Done.
+> *"Delete all audio tracks. In one of the remaining MIDI tracks, add a punchy synth and a 4-bar clip with an Em bassline. Lastly, set the tempo to 150."* → Done.
 
 [![Live Agent demo](https://img.youtube.com/vi/AFiYc4WvxQU/hqdefault.jpg)](https://youtu.be/AFiYc4WvxQU)
 
